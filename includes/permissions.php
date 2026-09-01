@@ -28,8 +28,11 @@ function is_admin_user(?int $userId = null): bool {
         if (!$user) {
             return false;
         }
+        $userId = (int)$user['id'];
         $role = strtolower($user['role'] ?? '');
-        return ($role === 'admin' || $role === 'administrator');
+        if ($role === 'admin' || $role === 'administrator') {
+            return true;
+        }
     }
 
     $db = get_db();
@@ -75,13 +78,19 @@ function get_user_role_slugs(int $userId): array {
     $stmt->execute([$userId]);
     $slugs = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
 
-    // Fallback to users.role if user_roles has no record
+    // Fallback: If user_roles was empty, map using users.role column
     if (empty($slugs)) {
         $uStmt = $db->prepare("SELECT role FROM users WHERE id = ?");
         $uStmt->execute([$userId]);
         $pRole = $uStmt->fetchColumn();
+        if (!$pRole) {
+            $currUser = current_user();
+            if ($currUser && (int)($currUser['id'] ?? 0) === $userId && !empty($currUser['role'])) {
+                $pRole = $currUser['role'];
+            }
+        }
         if ($pRole) {
-            $slugs[] = ($pRole === 'admin') ? 'administrator' : (($pRole === 'agent') ? 'support_agent' : $pRole);
+            $slugs[] = ($pRole === 'admin') ? 'administrator' : (($pRole === 'agent') ? 'support_agent' : (($pRole === 'manager') ? 'support_manager' : $pRole));
         }
     }
 
@@ -122,13 +131,19 @@ function get_user_permissions(int $userId): array {
     $stmt->execute([$userId]);
     $perms = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
 
-    // Fallback: If user_roles was empty, map using users.role column
+    // Fallback: If user_roles was empty, map using users.role column or session role
     if (empty($perms)) {
         $uStmt = $db->prepare("SELECT role FROM users WHERE id = ?");
         $uStmt->execute([$userId]);
         $pRole = $uStmt->fetchColumn();
+        if (!$pRole) {
+            $currUser = current_user();
+            if ($currUser && (int)($currUser['id'] ?? 0) === $userId && !empty($currUser['role'])) {
+                $pRole = $currUser['role'];
+            }
+        }
         if ($pRole) {
-            $normalizedSlug = ($pRole === 'admin') ? 'administrator' : (($pRole === 'agent') ? 'support_agent' : $pRole);
+            $normalizedSlug = ($pRole === 'admin') ? 'administrator' : (($pRole === 'agent') ? 'support_agent' : (($pRole === 'manager') ? 'support_manager' : $pRole));
             $fbStmt = $db->prepare("
                 SELECT DISTINCT p.slug
                 FROM permissions p

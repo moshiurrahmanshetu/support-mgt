@@ -6,16 +6,18 @@
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/auth_check.php';
 
-$user = current_user();
+$user = $user ?? current_user();
 $currentScript = $_SERVER['SCRIPT_NAME'] ?? '';
 $activePage = $activePage ?? '';
 
 // Helper for active navigation link
-function is_nav_active(string $target, string $currentScript, string $activePage): bool {
-    if (!empty($activePage) && $activePage === $target) {
-        return true;
+if (!function_exists('is_nav_active')) {
+    function is_nav_active(string $target, string $currentScript, string $activePage): bool {
+        if (!empty($activePage) && $activePage === $target) {
+            return true;
+        }
+        return strpos($currentScript, $target) !== false;
     }
-    return strpos($currentScript, $target) !== false;
 }
 ?>
 <aside class="app-sidebar" id="appSidebar">
@@ -49,8 +51,8 @@ function is_nav_active(string $target, string $currentScript, string $activePage
             <span class="nav-header-text">Support Desk</span>
         </li>
 
-        <?php if ($user && $user['role'] === ROLE_CUSTOMER): ?>
-            <!-- Customer Links -->
+        <?php if ($user && (has_role('customer') || $user['role'] === ROLE_CUSTOMER)): ?>
+            <!-- Customer Support Links -->
             <li class="nav-item">
                 <a href="<?= url('modules/tickets/index.php'); ?>" 
                    class="nav-link-custom <?= (is_nav_active('tickets', $currentScript, $activePage) && !is_nav_active('create.php', $currentScript, $activePage)) ? 'active' : ''; ?>" 
@@ -71,38 +73,43 @@ function is_nav_active(string $target, string $currentScript, string $activePage
                     <span class="nav-text">Create Ticket</span>
                 </a>
             </li>
-            <!-- Admin / Agent Support Links -->
-            <?php
-            $newCustomerTicketCount = 0;
-            if ($user && (is_admin_user() || has_role(['admin', 'administrator', 'support_manager']))) {
-                $newCustomerTicketCount = get_new_customer_ticket_count();
-            }
-            ?>
-            <li class="nav-item">
-                <a href="<?= url('modules/tickets/index.php'); ?>" 
-                   class="nav-link-custom d-flex align-items-center <?= is_nav_active('tickets', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="<?= $newCustomerTicketCount > 0 ? 'Support Tickets (' . $newCustomerTicketCount . ' new)' : 'Support Tickets'; ?>">
-                    <i class="bi bi-ticket-perforated"></i>
-                    <span class="nav-text flex-grow-1">Support Tickets</span>
-                    <?php if ($newCustomerTicketCount > 0): ?>
-                        <span class="badge bg-danger rounded-pill ms-auto nav-badge fw-bold" style="font-size: 0.7rem; padding: 0.25em 0.55em;"><?= $newCustomerTicketCount; ?></span>
-                    <?php endif; ?>
-                </a>
-            </li>
+        <?php else: ?>
+            <!-- Admin / Staff Support Links -->
+            <?php if (has_permission('tickets.view')): ?>
+                <?php
+                $newCustomerTicketCount = 0;
+                if (is_admin_user() || has_role(['admin', 'administrator', 'support_manager'])) {
+                    $newCustomerTicketCount = get_new_customer_ticket_count();
+                }
+                ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/tickets/index.php'); ?>" 
+                       class="nav-link-custom d-flex align-items-center <?= is_nav_active('tickets', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="<?= $newCustomerTicketCount > 0 ? 'Support Tickets (' . $newCustomerTicketCount . ' new)' : 'Support Tickets'; ?>">
+                        <i class="bi bi-ticket-perforated"></i>
+                        <span class="nav-text flex-grow-1">Support Tickets</span>
+                        <?php if ($newCustomerTicketCount > 0): ?>
+                            <span class="badge bg-danger rounded-pill ms-auto nav-badge fw-bold" style="font-size: 0.7rem; padding: 0.25em 0.55em;"><?= $newCustomerTicketCount; ?></span>
+                        <?php endif; ?>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- Canned Responses (Admin & Agent) -->
-            <li class="nav-item">
-                <a href="<?= url('modules/canned_responses/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('canned_responses', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="Canned Responses">
-                    <i class="bi bi-chat-square-quote"></i>
-                    <span class="nav-text">Canned Responses</span>
-                </a>
-            </li>
+            <?php if (has_permission('canned_responses.view') || has_permission('tickets.reply')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/canned_responses/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('canned_responses', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Canned Responses">
+                        <i class="bi bi-chat-square-quote"></i>
+                        <span class="nav-text">Canned Responses</span>
+                    </a>
+                </li>
+            <?php endif; ?>
         <?php endif; ?>
 
         <!-- Knowledge Base Portal (All Roles) -->
