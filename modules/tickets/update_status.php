@@ -1,11 +1,12 @@
 <?php
 /**
- * Ticket Management - Update Ticket Status & Priority Handler
+ * Ticket Management - Update Ticket Status & Priority Handler (Integrated with Activity Logging)
  */
 
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth_check.php';
+require_once __DIR__ . '/../../includes/ticket_activity.php';
 
 require_login();
 
@@ -53,39 +54,52 @@ if ($action === 'update_status') {
         redirect('modules/tickets/view.php?id=' . $ticketId);
     }
 
-    $resolvedAt = $ticket['resolved_at'];
-    $closedAt = $ticket['closed_at'];
+    if ($ticket['status'] !== $newStatus) {
+        $resolvedAt = $ticket['resolved_at'];
+        $closedAt = $ticket['closed_at'];
 
-    if ($newStatus === STATUS_RESOLVED) {
-        $resolvedAt = date('Y-m-d H:i:s');
-    } elseif ($newStatus === STATUS_CLOSED) {
-        $closedAt = date('Y-m-d H:i:s');
-        if (empty($resolvedAt)) {
+        if ($newStatus === STATUS_RESOLVED) {
             $resolvedAt = date('Y-m-d H:i:s');
+        } elseif ($newStatus === STATUS_CLOSED) {
+            $closedAt = date('Y-m-d H:i:s');
+            if (empty($resolvedAt)) {
+                $resolvedAt = date('Y-m-d H:i:s');
+            }
+        } elseif (in_array($newStatus, [STATUS_OPEN, STATUS_IN_PROGRESS, STATUS_PENDING], true)) {
+            // If transitioning back, clear closed/resolved timestamps
+            if ($ticket['status'] === STATUS_CLOSED) {
+                $closedAt = null;
+            }
+            if ($ticket['status'] === STATUS_RESOLVED) {
+                $resolvedAt = null;
+            }
         }
-    } elseif (in_array($newStatus, [STATUS_OPEN, STATUS_IN_PROGRESS, STATUS_PENDING], true)) {
-        // If reopening, clear closed/resolved timestamps
-        if ($ticket['status'] === STATUS_CLOSED) {
-            $closedAt = null;
-        }
-        if ($ticket['status'] === STATUS_RESOLVED) {
-            $resolvedAt = null;
-        }
+
+        $updateStmt = $db->prepare("
+            UPDATE tickets 
+            SET status = ?, resolved_at = ?, closed_at = ?, updated_at = NOW() 
+            WHERE id = ?
+        ");
+        $updateStmt->execute([
+            $newStatus,
+            $resolvedAt,
+            $closedAt,
+            $ticketId
+        ]);
+
+        log_ticket_activity(
+            $ticketId,
+            $user['id'],
+            'status_changed',
+            $ticket['status'],
+            $newStatus,
+            "Status changed from " . ucfirst(str_replace('_', ' ', $ticket['status'])) . " to " . ucfirst(str_replace('_', ' ', $newStatus))
+        );
+
+        flash('success', 'Ticket status updated to <strong>' . ucfirst(str_replace('_', ' ', $newStatus)) . '</strong>.');
+    } else {
+        flash('info', 'Ticket status is already ' . ucfirst(str_replace('_', ' ', $newStatus)) . '.');
     }
-
-    $updateStmt = $db->prepare("
-        UPDATE tickets 
-        SET status = ?, resolved_at = ?, closed_at = ?, updated_at = NOW() 
-        WHERE id = ?
-    ");
-    $updateStmt->execute([
-        $newStatus,
-        $resolvedAt,
-        $closedAt,
-        $ticketId
-    ]);
-
-    flash('success', 'Ticket status updated to <strong>' . ucfirst(str_replace('_', ' ', $newStatus)) . '</strong>.');
 }
 
 // 2. Handle Priority Update
@@ -97,10 +111,23 @@ if ($action === 'update_priority') {
         redirect('modules/tickets/view.php?id=' . $ticketId);
     }
 
-    $updateStmt = $db->prepare("UPDATE tickets SET priority = ?, updated_at = NOW() WHERE id = ?");
-    $updateStmt->execute([$newPriority, $ticketId]);
+    if ($ticket['priority'] !== $newPriority) {
+        $updateStmt = $db->prepare("UPDATE tickets SET priority = ?, updated_at = NOW() WHERE id = ?");
+        $updateStmt->execute([$newPriority, $ticketId]);
 
-    flash('success', 'Ticket priority updated to <strong>' . ucfirst($newPriority) . '</strong>.');
+        log_ticket_activity(
+            $ticketId,
+            $user['id'],
+            'priority_changed',
+            $ticket['priority'],
+            $newPriority,
+            "Priority changed from " . ucfirst($ticket['priority']) . " to " . ucfirst($newPriority)
+        );
+
+        flash('success', 'Ticket priority updated to <strong>' . ucfirst($newPriority) . '</strong>.');
+    } else {
+        flash('info', 'Ticket priority is already ' . ucfirst($newPriority) . '.');
+    }
 }
 
 redirect('modules/tickets/view.php?id=' . $ticketId);

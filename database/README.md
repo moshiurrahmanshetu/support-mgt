@@ -1,4 +1,4 @@
-# Database Documentation — Phase 01, Phase 02 & Phase 03
+# Database Documentation — Phases 01, 02, 03 & 04
 
 This directory contains the database migration scripts and seed data for **support-mgt**.
 
@@ -30,6 +30,17 @@ Contains:
   - Sales & Account Inquiry
   - General Support
 
+### 4. `04_advanced_ticket_workflow.sql` (Phase 04)
+Contains:
+- Adds `first_response_at` to `tickets`.
+- `ticket_tags`: Custom ticket tags (`id`, `name`, `color`).
+- `ticket_tag_relations`: Pivot table for many-to-many ticket tag association (`ticket_id`, `tag_id`).
+- `canned_responses`: Pre-written response templates for staff (`id`, `title`, `content`, `created_by`).
+- `ticket_activity_logs`: Audit trail for ticket lifecycle events (`ticket_id`, `user_id`, `action`, `old_value`, `new_value`, `description`).
+- **Initial Seeds**:
+  - 8 Default Ticket Tags (Technical, Billing, Payment, Login & Security, Account, Bug Report, Feature Request, Urgent Assistance).
+  - 4 Default Canned Responses.
+
 ## Database Import Order in XAMPP
 
 Execute the SQL files in dependency order:
@@ -43,4 +54,7 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # Phase 03: Customer, Agent & Department Management
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\03_customer_agent_department.sql"
+
+# Phase 04: Advanced Workflows, Tags, Canned Responses & Activity Logs
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\04_advanced_ticket_workflow.sql"
 ```

@@ -1,11 +1,12 @@
 <?php
 /**
- * Ticket Management - View Ticket Details & Conversation (Integrated with Departments)
+ * Ticket Management - View Ticket Details, Full Timeline, Tags & Canned Responses (Phase 04)
  */
 
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth_check.php';
+require_once __DIR__ . '/../../includes/ticket_activity.php';
 
 require_login();
 
@@ -19,7 +20,7 @@ if ($ticketId <= 0) {
 
 $db = get_db();
 
-// 1. Fetch Ticket with Customer, Department & Assigned Agent Details
+// 1. Fetch Ticket Details
 $ticketStmt = $db->prepare("
     SELECT 
         t.*,
@@ -53,7 +54,7 @@ if ($user['role'] === ROLE_CUSTOMER && (int)$ticket['user_id'] !== (int)$user['i
     redirect('modules/tickets/index.php');
 }
 
-// 3. Fetch Conversation Messages (Customers cannot see internal notes)
+// 3. Fetch Conversation Messages
 if ($user['role'] === ROLE_CUSTOMER) {
     $msgStmt = $db->prepare("
         SELECT m.*, u.name AS sender_name, u.role AS sender_role, u.avatar AS sender_avatar
@@ -85,18 +86,92 @@ $attStmt = $db->prepare("
 $attStmt->execute([$ticketId]);
 $allAttachments = $attStmt->fetchAll();
 
-// Group attachments by message_id
 $attachmentsByMessage = [];
 foreach ($allAttachments as $att) {
     $msgKey = $att['message_id'] ?: 0;
     $attachmentsByMessage[$msgKey][] = $att;
 }
 
-// 5. Fetch active agents for assignment (Admin only, filtered by department if assigned)
+// 5. Fetch Assigned Tags for this Ticket
+$tagStmt = $db->prepare("
+    SELECT tt.id, tt.name, tt.color 
+    FROM ticket_tags tt
+    JOIN ticket_tag_relations ttr ON ttr.tag_id = tt.id
+    WHERE ttr.ticket_id = ?
+    ORDER BY tt.name ASC
+");
+$tagStmt->execute([$ticketId]);
+$ticketTags = $tagStmt->fetchAll();
+$ticketTagIds = array_column($ticketTags, 'id');
+
+// 6. Fetch All Available Tags (for Staff Tag Assignment)
+$allTags = [];
+if ($user['role'] !== ROLE_CUSTOMER) {
+    $allTagsStmt = $db->query("SELECT id, name, color FROM ticket_tags ORDER BY name ASC");
+    $allTags = $allTagsStmt->fetchAll();
+}
+
+// 7. Fetch Activity Logs for Staff Timeline
+$timelineEvents = [];
+if ($user['role'] !== ROLE_CUSTOMER) {
+    $logStmt = $db->prepare("
+        SELECT tal.*, u.name AS user_name, u.role AS user_role
+        FROM ticket_activity_logs tal
+        LEFT JOIN users u ON tal.user_id = u.id
+        WHERE tal.ticket_id = ?
+        ORDER BY tal.created_at ASC
+    ");
+    $logStmt->execute([$ticketId]);
+    $activityLogs = $logStmt->fetchAll();
+
+    // Merge messages and activity logs chronologically
+    foreach ($messages as $msg) {
+        $timelineEvents[] = [
+            'type'       => 'message',
+            'created_at' => $msg['created_at'],
+            'data'       => $msg
+        ];
+    }
+    foreach ($activityLogs as $log) {
+        // Exclude generic reply/note activity to avoid duplication with message bubbles
+        if (!in_array($log['action'], ['reply_added', 'internal_note_added'], true)) {
+            $timelineEvents[] = [
+                'type'       => 'activity',
+                'created_at' => $log['created_at'],
+                'data'       => $log
+            ];
+        }
+    }
+
+    usort($timelineEvents, function ($a, $b) {
+        return strcmp($a['created_at'], $b['created_at']);
+    });
+} else {
+    // Customer timeline: messages only
+    foreach ($messages as $msg) {
+        $timelineEvents[] = [
+            'type'       => 'message',
+            'created_at' => $msg['created_at'],
+            'data'       => $msg
+        ];
+    }
+}
+
+// 8. Fetch Canned Responses for Staff
+$cannedResponses = [];
+if ($user['role'] !== ROLE_CUSTOMER) {
+    $cannedStmt = $db->query("SELECT id, title, content FROM canned_responses ORDER BY title ASC");
+    $cannedResponses = $cannedStmt->fetchAll();
+}
+
+// 9. Fetch Active Departments & Agents (for Admin controls)
+$activeDepartments = [];
 $agents = [];
 if ($user['role'] === ROLE_ADMIN) {
+    $deptStmt = $db->query("SELECT id, name FROM departments WHERE status = 'active' ORDER BY name ASC");
+    $activeDepartments = $deptStmt->fetchAll();
+
     if (!empty($ticket['department_id'])) {
-        // Prefer agents in the ticket's department
         $agentsStmt = $db->prepare("
             SELECT u.id, u.name, u.email, d.name AS department_name
             FROM users u
@@ -108,7 +183,6 @@ if ($user['role'] === ROLE_ADMIN) {
         $agents = $agentsStmt->fetchAll();
     }
     
-    // If no agents found for this department, load all active agents as fallback
     if (empty($agents)) {
         $agentsStmt = $db->query("
             SELECT u.id, u.name, u.email, d.name AS department_name
@@ -150,6 +224,12 @@ include __DIR__ . '/../../includes/header.php';
                                 <i class="bi bi-building me-1 text-secondary"></i><?= e($ticket['department_name']); ?>
                             </span>
                         <?php endif; ?>
+                        <!-- Ticket Tags -->
+                        <?php foreach ($ticketTags as $tTag): ?>
+                            <span class="badge" style="background-color: <?= e($tTag['color']); ?>; color: #ffffff;">
+                                <i class="bi bi-tag-fill me-1"></i><?= e($tTag['name']); ?>
+                            </span>
+                        <?php endforeach; ?>
                     </div>
                     <h1 class="h4 fw-bold mb-2"><?= e($ticket['subject']); ?></h1>
                     <div class="text-secondary-custom small d-flex flex-wrap align-items-center gap-3">
@@ -168,77 +248,115 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 
     <div class="row g-4">
-        <!-- Main Conversation Area -->
+        <!-- Main Conversation & Timeline Area -->
         <div class="col-12 col-lg-8">
             <div class="timeline-container">
-                <?php if (!empty($messages)): ?>
-                    <?php foreach ($messages as $idx => $msg): 
-                        $isNote = ($msg['message_type'] === MESSAGE_TYPE_NOTE);
-                        $isStaff = in_array($msg['sender_role'], [ROLE_ADMIN, ROLE_AGENT], true);
-                        $itemClass = $isNote ? 'is-note' : ($isStaff ? 'is-agent' : 'is-customer');
-                    ?>
-                        <div class="timeline-item <?= $itemClass; ?>" id="message-<?= $msg['id']; ?>">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-card <?= $itemClass; ?>">
-                                <div class="timeline-header">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <img src="<?= e(get_avatar_url($msg['sender_avatar'])); ?>" 
-                                             alt="<?= e($msg['sender_name']); ?>" 
-                                             class="avatar-img avatar-sm">
-                                        <div>
-                                            <span class="fw-semibold text-dark fs-7"><?= e($msg['sender_name']); ?></span>
-                                            <span class="badge badge-role-<?= e($msg['sender_role']); ?> ms-1"><?= e($msg['sender_role']); ?></span>
-                                            <?php if ($isNote): ?>
-                                                <span class="badge bg-warning text-dark ms-1">
-                                                    <i class="bi bi-lock-fill me-1"></i>Internal Note
-                                                </span>
-                                            <?php endif; ?>
+                <?php if (!empty($timelineEvents)): ?>
+                    <?php foreach ($timelineEvents as $item): ?>
+                        <?php if ($item['type'] === 'message'): 
+                            $msg = $item['data'];
+                            $isNote = ($msg['message_type'] === MESSAGE_TYPE_NOTE);
+                            $isStaff = in_array($msg['sender_role'], [ROLE_ADMIN, ROLE_AGENT], true);
+                            $itemClass = $isNote ? 'is-note' : ($isStaff ? 'is-agent' : 'is-customer');
+                        ?>
+                            <!-- Message Timeline Entry -->
+                            <div class="timeline-item <?= $itemClass; ?>" id="message-<?= $msg['id']; ?>">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-card <?= $itemClass; ?>">
+                                    <div class="timeline-header">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <img src="<?= e(get_avatar_url($msg['sender_avatar'])); ?>" 
+                                                 alt="<?= e($msg['sender_name']); ?>" 
+                                                 class="avatar-img avatar-sm">
+                                            <div>
+                                                <span class="fw-semibold text-dark fs-7"><?= e($msg['sender_name']); ?></span>
+                                                <span class="badge badge-role-<?= e($msg['sender_role']); ?> ms-1"><?= e($msg['sender_role']); ?></span>
+                                                <?php if ($isNote): ?>
+                                                    <span class="badge bg-warning text-dark ms-1">
+                                                        <i class="bi bi-lock-fill me-1"></i>Internal Note
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <div class="text-muted fs-8">
+                                            <?= e(format_datetime($msg['created_at'])); ?>
                                         </div>
                                     </div>
-                                    <div class="text-muted fs-8">
-                                        <?= e(format_datetime($msg['created_at'])); ?>
+
+                                    <div class="timeline-body">
+                                        <?= nl2br(e($msg['message'])); ?>
                                     </div>
-                                </div>
 
-                                <div class="timeline-body">
-                                    <?= nl2br(e($msg['message'])); ?>
-                                </div>
-
-                                <!-- Attachments for this message -->
-                                <?php if (!empty($attachmentsByMessage[$msg['id']])): ?>
-                                    <div class="timeline-attachments">
-                                        <div class="d-flex flex-wrap gap-2 align-items-center">
-                                            <span class="small text-muted me-1"><i class="bi bi-paperclip"></i> Attachments:</span>
-                                            <?php foreach ($attachmentsByMessage[$msg['id']] as $att): ?>
-                                                <a href="<?= url('modules/tickets/download_attachment.php?id=' . $att['id']); ?>" 
-                                                   class="btn btn-sm btn-outline-secondary py-1 px-2 d-inline-flex align-items-center gap-1"
-                                                   target="_blank">
-                                                    <i class="bi bi-file-earmark"></i>
-                                                    <span class="text-truncate" style="max-width: 200px;"><?= e($att['original_name']); ?></span>
-                                                    <span class="badge bg-light text-secondary border fs-8"><?= format_file_size($att['file_size']); ?></span>
-                                                </a>
-                                            <?php endforeach; ?>
+                                    <!-- Attachments for this message -->
+                                    <?php if (!empty($attachmentsByMessage[$msg['id']])): ?>
+                                        <div class="timeline-attachments">
+                                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                <span class="small text-muted me-1"><i class="bi bi-paperclip"></i> Attachments:</span>
+                                                <?php foreach ($attachmentsByMessage[$msg['id']] as $att): ?>
+                                                    <a href="<?= url('modules/tickets/download_attachment.php?id=' . $att['id']); ?>" 
+                                                       class="btn btn-sm btn-outline-secondary py-1 px-2 d-inline-flex align-items-center gap-1"
+                                                       target="_blank">
+                                                        <i class="bi bi-file-earmark"></i>
+                                                        <span class="text-truncate" style="max-width: 200px;"><?= e($att['original_name']); ?></span>
+                                                        <span class="badge bg-light text-secondary border fs-8"><?= format_file_size($att['file_size']); ?></span>
+                                                    </a>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
-                                    </div>
-                                <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
                             </div>
-                        </div>
+                        <?php elseif ($item['type'] === 'activity' && $user['role'] !== ROLE_CUSTOMER): 
+                            $log = $item['data'];
+                            $ev = format_activity_event($log);
+                        ?>
+                            <!-- System Activity Event Entry (Staff Only) -->
+                            <div class="d-flex align-items-center gap-2 my-2 py-2 px-3 bg-light rounded border fs-8 text-secondary">
+                                <i class="bi <?= $ev['icon']; ?> <?= $ev['class']; ?> fs-6"></i>
+                                <div class="flex-grow-1">
+                                    <?= $ev['text']; ?>
+                                </div>
+                                <div class="text-muted fs-8">
+                                    <?= e(format_datetime($log['created_at'], 'M d, H:i')); ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>
 
             <!-- Reply Box -->
             <div class="card border shadow-sm mt-3" id="replyForm">
-                <div class="card-header bg-white">
+                <div class="card-header bg-white d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2">
                     <h5 class="card-title h6 mb-0 fw-bold">
                         <i class="bi bi-chat-left-text me-2 text-primary"></i>Post a Response
                     </h5>
+
+                    <!-- Canned Responses Selector (Staff Only) -->
+                    <?php if ($user['role'] !== ROLE_CUSTOMER && !empty($cannedResponses)): ?>
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="cannedSelect" class="small text-muted mb-0 fw-medium flex-shrink-0">
+                                <i class="bi bi-chat-square-quote"></i> Template:
+                            </label>
+                            <select id="cannedSelect" class="form-select form-select-sm" style="max-width: 220px;">
+                                <option value="">-- Insert Canned Response --</option>
+                                <?php foreach ($cannedResponses as $cr): ?>
+                                    <option value="<?= $cr['id']; ?>" data-content="<?= htmlspecialchars($cr['content'], ENT_QUOTES, 'UTF-8'); ?>">
+                                        <?= e($cr['title']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="card-body p-4">
-                    <?php if ($ticket['status'] === STATUS_CLOSED): ?>
+                    <?php if ($ticket['status'] === STATUS_CLOSED || $ticket['status'] === STATUS_RESOLVED): ?>
                         <div class="alert alert-secondary d-flex align-items-center mb-3">
-                            <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-                            <div>This ticket is marked as <strong>Closed</strong>. Submitting a new reply will automatically reopen this ticket.</div>
+                            <i class="bi bi-info-circle-fill me-2 fs-5 text-primary"></i>
+                            <div>
+                                This ticket is currently marked as <strong><?= ucfirst($ticket['status']); ?></strong>. 
+                                Submitting a new reply will automatically <strong>reopen</strong> the ticket.
+                            </div>
                         </div>
                     <?php endif; ?>
 
@@ -321,7 +439,7 @@ include __DIR__ . '/../../includes/header.php';
                     <table class="table table-sm table-borderless mb-0">
                         <tbody>
                             <tr>
-                                <td class="text-muted" style="width: 40%;">Status:</td>
+                                <td class="text-muted" style="width: 42%;">Status:</td>
                                 <td><?= render_status_badge($ticket['status']); ?></td>
                             </tr>
                             <tr>
@@ -356,16 +474,32 @@ include __DIR__ . '/../../includes/header.php';
                                 <td class="text-muted">Updated:</td>
                                 <td class="small"><?= e(format_datetime($ticket['updated_at'])); ?></td>
                             </tr>
-                            <?php if (!empty($ticket['resolved_at'])): ?>
-                                <tr>
-                                    <td class="text-muted">Resolved:</td>
-                                    <td class="small text-success fw-medium"><?= e(format_datetime($ticket['resolved_at'])); ?></td>
+
+                            <!-- Response & Resolution Metrics (Staff Only) -->
+                            <?php if ($user['role'] !== ROLE_CUSTOMER): ?>
+                                <tr class="border-top">
+                                    <td class="text-muted pt-2">First Response:</td>
+                                    <td class="small pt-2">
+                                        <?php if (!empty($ticket['first_response_at'])): ?>
+                                            <span class="text-success fw-medium">
+                                                <i class="bi bi-stopwatch me-1"></i><?= format_duration($ticket['created_at'], $ticket['first_response_at']); ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted fst-italic">Awaiting response</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
-                            <?php endif; ?>
-                            <?php if (!empty($ticket['closed_at'])): ?>
                                 <tr>
-                                    <td class="text-muted">Closed:</td>
-                                    <td class="small text-secondary fw-medium"><?= e(format_datetime($ticket['closed_at'])); ?></td>
+                                    <td class="text-muted">Resolution Time:</td>
+                                    <td class="small">
+                                        <?php if (!empty($ticket['resolved_at'])): ?>
+                                            <span class="text-primary fw-medium">
+                                                <i class="bi bi-check2-circle me-1"></i><?= format_duration($ticket['created_at'], $ticket['resolved_at']); ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted fst-italic">Not resolved yet</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -373,13 +507,64 @@ include __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
 
+            <!-- Tags Management Panel (Staff Only) -->
+            <?php if ($user['role'] !== ROLE_CUSTOMER): ?>
+                <div class="card border shadow-sm mb-4">
+                    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                        <h5 class="card-title h6 mb-0 fw-bold">
+                            <i class="bi bi-tags me-2 text-primary"></i>Ticket Tags
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Currently Assigned Tags with Remove Action -->
+                        <div class="d-flex flex-wrap gap-1 mb-3">
+                            <?php if (!empty($ticketTags)): ?>
+                                <?php foreach ($ticketTags as $tTag): ?>
+                                    <form action="<?= url('modules/tickets/tags.php'); ?>" method="POST" class="d-inline">
+                                        <?= csrf_field(); ?>
+                                        <input type="hidden" name="ticket_id" value="<?= $ticket['id']; ?>">
+                                        <input type="hidden" name="tag_id" value="<?= $tTag['id']; ?>">
+                                        <input type="hidden" name="action" value="remove">
+                                        <button type="submit" class="badge border-0 py-1 px-2 d-inline-flex align-items-center gap-1" style="background-color: <?= e($tTag['color']); ?>; color: #ffffff;" title="Click to remove tag">
+                                            <?= e($tTag['name']); ?> <i class="bi bi-x"></i>
+                                        </button>
+                                    </form>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <span class="small text-muted fst-italic">No tags attached to this ticket.</span>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Attach New Tag Form -->
+                        <?php if (!empty($allTags)): ?>
+                            <form action="<?= url('modules/tickets/tags.php'); ?>" method="POST" class="d-flex gap-2">
+                                <?= csrf_field(); ?>
+                                <input type="hidden" name="ticket_id" value="<?= $ticket['id']; ?>">
+                                <input type="hidden" name="action" value="add">
+                                <select name="tag_id" class="form-select form-select-sm" required>
+                                    <option value="">-- Attach Tag --</option>
+                                    <?php foreach ($allTags as $aTag): ?>
+                                        <?php if (!in_array($aTag['id'], $ticketTagIds)): ?>
+                                            <option value="<?= $aTag['id']; ?>"><?= e($aTag['name']); ?></option>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-outline-primary flex-shrink-0">
+                                    <i class="bi bi-plus"></i> Attach
+                                </button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <!-- Staff Action Panels (Admin & Agent Only) -->
             <?php if ($user['role'] !== ROLE_CUSTOMER): ?>
                 <!-- Quick Status & Priority Updates -->
                 <div class="card border shadow-sm mb-4">
                     <div class="card-header bg-white">
                         <h5 class="card-title h6 mb-0 fw-bold">
-                            <i class="bi bi-sliders me-2 text-primary"></i>Manage Ticket Status & Priority
+                            <i class="bi bi-sliders me-2 text-primary"></i>Status & Priority
                         </h5>
                     </div>
                     <div class="card-body">
@@ -387,7 +572,7 @@ include __DIR__ . '/../../includes/header.php';
                             <?= csrf_field(); ?>
                             <input type="hidden" name="ticket_id" value="<?= $ticket['id']; ?>">
                             
-                            <label for="status" class="form-label small fw-semibold">Update Status</label>
+                            <label for="status" class="form-label small fw-semibold">Status</label>
                             <div class="input-group">
                                 <select name="status" id="status" class="form-select form-select-sm">
                                     <?php foreach (VALID_TICKET_STATUSES as $st): ?>
@@ -406,7 +591,7 @@ include __DIR__ . '/../../includes/header.php';
                             <?= csrf_field(); ?>
                             <input type="hidden" name="ticket_id" value="<?= $ticket['id']; ?>">
 
-                            <label for="priority" class="form-label small fw-semibold">Update Priority</label>
+                            <label for="priority" class="form-label small fw-semibold">Priority</label>
                             <div class="input-group">
                                 <select name="priority" id="priority" class="form-select form-select-sm">
                                     <?php foreach (VALID_PRIORITIES as $pr): ?>
@@ -423,8 +608,38 @@ include __DIR__ . '/../../includes/header.php';
                     </div>
                 </div>
 
-                <!-- Admin Assignment Control -->
+                <!-- Admin Department & Assignment Controls -->
                 <?php if ($user['role'] === ROLE_ADMIN): ?>
+                    <!-- Department Update Control -->
+                    <div class="card border shadow-sm mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="card-title h6 mb-0 fw-bold">
+                                <i class="bi bi-building me-2 text-primary"></i>Support Department
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="<?= url('modules/tickets/update_department.php'); ?>" method="POST">
+                                <?= csrf_field(); ?>
+                                <input type="hidden" name="ticket_id" value="<?= $ticket['id']; ?>">
+
+                                <div class="mb-2">
+                                    <select name="department_id" class="form-select form-select-sm">
+                                        <option value="">-- General / None --</option>
+                                        <?php foreach ($activeDepartments as $dept): ?>
+                                            <option value="<?= $dept['id']; ?>" <?= ((int)$ticket['department_id'] === (int)$dept['id']) ? 'selected' : ''; ?>>
+                                                <?= e($dept['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                    <i class="bi bi-check2"></i> Move Department
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Agent Assignment Control -->
                     <div class="card border shadow-sm mb-4">
                         <div class="card-header bg-white">
                             <h5 class="card-title h6 mb-0 fw-bold">
@@ -437,7 +652,6 @@ include __DIR__ . '/../../includes/header.php';
                                 <input type="hidden" name="ticket_id" value="<?= $ticket['id']; ?>">
 
                                 <div class="mb-3">
-                                    <label for="assigned_to" class="form-label small">Select Agent</label>
                                     <select name="assigned_to" id="assigned_to" class="form-select form-select-sm">
                                         <option value="">-- Unassigned --</option>
                                         <?php if (!empty($agents)): ?>
@@ -467,5 +681,30 @@ include __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Vanilla JS for Canned Responses Insertion -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var cannedSelect = document.getElementById('cannedSelect');
+    var messageTextarea = document.getElementById('message');
+
+    if (cannedSelect && messageTextarea) {
+        cannedSelect.addEventListener('change', function() {
+            var selectedOption = this.options[this.selectedIndex];
+            var templateContent = selectedOption.getAttribute('data-content');
+            if (templateContent) {
+                if (messageTextarea.value.trim() !== '') {
+                    if (confirm('Replace existing message with this canned response template?')) {
+                        messageTextarea.value = templateContent;
+                    }
+                } else {
+                    messageTextarea.value = templateContent;
+                }
+                messageTextarea.focus();
+            }
+        });
+    }
+});
+</script>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>

@@ -46,7 +46,8 @@ if ($user['role'] === ROLE_ADMIN) {
             (SELECT COUNT(*) FROM departments) AS total_departments,
             (SELECT COUNT(*) FROM departments WHERE status = 'active') AS active_departments,
             (SELECT COUNT(*) FROM tickets) AS total_tickets,
-            (SELECT COUNT(*) FROM tickets WHERE status IN ('open', 'in_progress', 'pending')) AS open_tickets
+            (SELECT COUNT(*) FROM tickets WHERE status IN ('open', 'in_progress', 'pending')) AS open_tickets,
+            (SELECT COUNT(*) FROM tickets WHERE assigned_to IS NULL) AS unassigned_tickets
     ");
     $adminStats = $adminOverviewStmt->fetch() ?: $adminStats;
 
@@ -274,7 +275,8 @@ include __DIR__ . '/includes/header.php';
                         </div>
                         <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_tickets']; ?></div>
                         <span class="text-muted fs-8">
-                            <span class="text-primary fw-medium"><?= (int)$adminStats['open_tickets']; ?> Unresolved</span> tickets
+                            <span class="text-primary fw-medium"><?= (int)$adminStats['open_tickets']; ?> Open</span> &bull; 
+                            <a href="<?= url('modules/tickets/index.php?agent_id=-1'); ?>" class="text-danger fw-medium text-decoration-none"><?= (int)($adminStats['unassigned_tickets'] ?? 0); ?> Unassigned</a>
                         </span>
                     </div>
                 </div>
@@ -484,6 +486,32 @@ include __DIR__ . '/includes/header.php';
                                     <div>
                                         <div class="fw-semibold text-dark">Support Departments</div>
                                         <div class="small text-muted">Configure teams and inquiry categories</div>
+                                    </div>
+                                </div>
+                                <i class="bi bi-chevron-right text-muted"></i>
+                            </a>
+
+                            <a href="<?= url('modules/tags/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="p-2 rounded bg-light text-success">
+                                        <i class="bi bi-tags fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">Ticket Tags</div>
+                                        <div class="small text-muted">Manage tags and color badges</div>
+                                    </div>
+                                </div>
+                                <i class="bi bi-chevron-right text-muted"></i>
+                            </a>
+
+                            <a href="<?= url('modules/canned_responses/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="p-2 rounded bg-light text-primary">
+                                        <i class="bi bi-chat-square-quote fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">Canned Responses</div>
+                                        <div class="small text-muted">Manage reusable response templates</div>
                                     </div>
                                 </div>
                                 <i class="bi bi-chevron-right text-muted"></i>

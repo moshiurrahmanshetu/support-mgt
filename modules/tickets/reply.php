@@ -1,11 +1,12 @@
 <?php
 /**
- * Ticket Management - Reply & Note Submission Handler
+ * Ticket Management - Reply & Note Submission Handler (Integrated with Activity & Reopen Tracking)
  */
 
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth_check.php';
+require_once __DIR__ . '/../../includes/ticket_activity.php';
 
 require_login();
 
@@ -137,7 +138,7 @@ try {
         }
     }
 
-    // If customer replies to a closed/resolved ticket, automatically reopen ticket
+    // A. Reopen Workflow: If customer replies to a closed/resolved ticket, automatically reopen ticket
     if ($user['role'] === ROLE_CUSTOMER && in_array($ticket['status'], [STATUS_RESOLVED, STATUS_CLOSED], true)) {
         $updateTicketStmt = $db->prepare("
             UPDATE tickets 
@@ -145,10 +146,28 @@ try {
             WHERE id = ?
         ");
         $updateTicketStmt->execute([STATUS_OPEN, $ticketId]);
+
+        log_ticket_activity($ticketId, $user['id'], 'ticket_reopened', $ticket['status'], STATUS_OPEN, "Ticket reopened by customer reply");
     } else {
-        // Just touch updated_at
-        $touchStmt = $db->prepare("UPDATE tickets SET updated_at = NOW() WHERE id = ?");
-        $touchStmt->execute([$ticketId]);
+        // B. First Response Tracking: If staff (Admin/Agent) posts first public reply
+        if (in_array($user['role'], [ROLE_ADMIN, ROLE_AGENT], true) && $messageType === MESSAGE_TYPE_REPLY && empty($ticket['first_response_at'])) {
+            $updateFirstRespStmt = $db->prepare("
+                UPDATE tickets 
+                SET first_response_at = NOW(), updated_at = NOW() 
+                WHERE id = ?
+            ");
+            $updateFirstRespStmt->execute([$ticketId]);
+        } else {
+            $touchStmt = $db->prepare("UPDATE tickets SET updated_at = NOW() WHERE id = ?");
+            $touchStmt->execute([$ticketId]);
+        }
+    }
+
+    // Log Activity (Reply or Note)
+    if ($messageType === MESSAGE_TYPE_NOTE) {
+        log_ticket_activity($ticketId, $user['id'], 'internal_note_added', null, null, "Internal staff note added");
+    } else {
+        log_ticket_activity($ticketId, $user['id'], 'reply_added', null, null, "Public reply posted");
     }
 
     $db->commit();

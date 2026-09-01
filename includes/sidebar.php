@@ -1,6 +1,6 @@
 <?php
 /**
- * Master Sidebar Include (Collapsible & Role-Aware - Phase 03)
+ * Master Sidebar Include (Collapsible & Role-Aware - Phase 04)
  */
 
 require_once __DIR__ . '/functions.php';
@@ -35,7 +35,7 @@ function is_nav_active(string $target, string $currentScript, string $activePage
         <!-- Dashboard Link -->
         <li class="nav-item">
             <a href="<?= url('index.php'); ?>" 
-               class="nav-link-custom <?= (is_nav_active('index.php', $currentScript, $activePage) && !is_nav_active('profile', $currentScript, $activePage) && !is_nav_active('tickets', $currentScript, $activePage) && !is_nav_active('customers', $currentScript, $activePage) && !is_nav_active('agents', $currentScript, $activePage) && !is_nav_active('departments', $currentScript, $activePage)) ? 'active' : ''; ?>" 
+               class="nav-link-custom <?= (is_nav_active('index.php', $currentScript, $activePage) && !is_nav_active('profile', $currentScript, $activePage) && !is_nav_active('tickets', $currentScript, $activePage) && !is_nav_active('customers', $currentScript, $activePage) && !is_nav_active('agents', $currentScript, $activePage) && !is_nav_active('departments', $currentScript, $activePage) && !is_nav_active('tags', $currentScript, $activePage) && !is_nav_active('canned_responses', $currentScript, $activePage)) ? 'active' : ''; ?>" 
                data-bs-toggle="tooltip" 
                data-bs-placement="right" 
                title="Dashboard">
@@ -83,6 +83,18 @@ function is_nav_active(string $target, string $currentScript, string $activePage
                     <span class="nav-text">Support Tickets</span>
                 </a>
             </li>
+
+            <!-- Canned Responses (Admin & Agent) -->
+            <li class="nav-item">
+                <a href="<?= url('modules/canned_responses/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('canned_responses', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Canned Responses">
+                    <i class="bi bi-chat-square-quote"></i>
+                    <span class="nav-text">Canned Responses</span>
+                </a>
+            </li>
         <?php endif; ?>
 
         <?php if ($user && $user['role'] === ROLE_ADMIN): ?>
@@ -124,6 +136,18 @@ function is_nav_active(string $target, string $currentScript, string $activePage
                    title="Departments">
                     <i class="bi bi-building"></i>
                     <span class="nav-text">Departments</span>
+                </a>
+            </li>
+
+            <!-- Tags -->
+            <li class="nav-item">
+                <a href="<?= url('modules/tags/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('tags', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Ticket Tags">
+                    <i class="bi bi-tags"></i>
+                    <span class="nav-text">Ticket Tags</span>
                 </a>
             </li>
         <?php endif; ?>

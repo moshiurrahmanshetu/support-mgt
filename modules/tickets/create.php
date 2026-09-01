@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth_check.php';
+require_once __DIR__ . '/../../includes/ticket_activity.php';
 
 require_login();
 
@@ -158,6 +159,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ]);
                     }
                 }
+
+                // Log Activity
+                log_ticket_activity($ticketId, $user['id'], 'ticket_created', null, $ticketNumber, "Ticket created with subject '{$subject}'");
 
                 $db->commit();
 

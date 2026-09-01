@@ -1,11 +1,12 @@
 <?php
 /**
- * Ticket Management - Assign Agent Handler (Admin Only)
+ * Ticket Management - Assign Agent Handler (Admin Only, Integrated with Activity Logging)
  */
 
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth_check.php';
+require_once __DIR__ . '/../../includes/ticket_activity.php';
 
 // Strict Admin Gate
 require_role(ROLE_ADMIN);
@@ -19,6 +20,7 @@ if (!verify_csrf_token()) {
     redirect($_SERVER['HTTP_REFERER'] ?? 'modules/tickets/index.php');
 }
 
+$user = current_user();
 $ticketId = (int)($_POST['ticket_id'] ?? 0);
 $assignedTo = !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null;
 
@@ -29,8 +31,14 @@ if ($ticketId <= 0) {
 
 $db = get_db();
 
-// Verify Ticket exists
-$ticketStmt = $db->prepare("SELECT id, department_id FROM tickets WHERE id = ? LIMIT 1");
+// Verify Ticket exists with current agent
+$ticketStmt = $db->prepare("
+    SELECT t.id, t.assigned_to, u.name AS old_agent_name
+    FROM tickets t
+    LEFT JOIN users u ON t.assigned_to = u.id
+    WHERE t.id = ?
+    LIMIT 1
+");
 $ticketStmt->execute([$ticketId]);
 $ticket = $ticketStmt->fetch();
 
@@ -39,8 +47,10 @@ if (!$ticket) {
     redirect('modules/tickets/index.php');
 }
 
+$oldAgentName = $ticket['old_agent_name'] ?: 'Unassigned';
+
 // Validate Agent if specified
-$agentName = 'Unassigned';
+$newAgentName = 'Unassigned';
 if ($assignedTo !== null) {
     $agentStmt = $db->prepare("
         SELECT u.id, u.name, u.department_id, d.status AS dept_status
@@ -63,17 +73,23 @@ if ($assignedTo !== null) {
         redirect('modules/tickets/view.php?id=' . $ticketId);
     }
 
-    $agentName = $agent['name'];
+    $newAgentName = $agent['name'];
 }
 
 // Update Ticket Assignment
-$updateStmt = $db->prepare("UPDATE tickets SET assigned_to = ?, updated_at = NOW() WHERE id = ?");
-$updateStmt->execute([$assignedTo, $ticketId]);
+if ((int)($ticket['assigned_to'] ?? 0) !== (int)($assignedTo ?? 0)) {
+    $updateStmt = $db->prepare("UPDATE tickets SET assigned_to = ?, updated_at = NOW() WHERE id = ?");
+    $updateStmt->execute([$assignedTo, $ticketId]);
 
-if ($assignedTo !== null) {
-    flash('success', "Ticket assigned to agent <strong>" . e($agentName) . "</strong>.");
+    if ($assignedTo !== null) {
+        log_ticket_activity($ticketId, $user['id'], 'ticket_assigned', $oldAgentName, $newAgentName, "Assigned to agent {$newAgentName}");
+        flash('success', "Ticket assigned to agent <strong>" . e($newAgentName) . "</strong>.");
+    } else {
+        log_ticket_activity($ticketId, $user['id'], 'ticket_unassigned', $oldAgentName, null, "Ticket assignment removed");
+        flash('info', "Ticket assignment removed (marked as unassigned).");
+    }
 } else {
-    flash('info', "Ticket assignment removed (marked as unassigned).");
+    flash('info', "Ticket assignment remains unchanged.");
 }
 
 redirect('modules/tickets/view.php?id=' . $ticketId);
