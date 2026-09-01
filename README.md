@@ -54,6 +54,20 @@ A lightweight, enterprise-ready Customer Support Management System built with **
 - **Live Ticket Creation Auto-Suggestions**: Non-blocking Vanilla JavaScript auto-suggestion box beneath ticket subject input that dynamically queries published solutions.
 - **System Settings Integration**: Global toggles for `knowledge_base_enabled` and `faq_enabled`.
 
+### Phase 07: Reports & Analytics + Dashboard Enhancement
+- **Reports Overview Dashboard (`modules/reports/index.php`)**: Executive KPI center with date range filtering (`Today`, `Yesterday`, `Last 7 Days`, `Last 30 Days`, `This Month`, `Last Month`, `Custom Range`), tickets breakdown, average first response latency, average resolution duration, and unassigned backlog.
+- **Ticket Distribution Report (`modules/reports/tickets.php`)**: Status & Priority breakdown with volume metrics, percentage distribution bars, and zero-division mathematically safe calculations.
+- **Department Performance Report (`modules/reports/departments.php`)**: Volume comparisons, status distribution, resolution speeds, and volume percentage shares across support teams.
+- **Agent Workload & Performance (`modules/reports/agents.php`)**: Individual staff metrics tracking assigned tickets, open vs resolved workloads, average first response times, and average resolution turnaround times with active/inactive filtering.
+- **Customer Ticket Analytics (`modules/reports/customers.php`)**: Customer inquiry volumes, resolution ratios, and last ticket activity dates with safe pagination (20, 50, 100).
+- **First Response Time Analytics (`modules/reports/response_time.php`)**: Average, fastest, and slowest response metrics with speed distribution brackets (&lt;15m, 15m–1h, 1h–4h, 4h–24h, &gt;24h) and recent response audit logs.
+- **Resolution Turnaround Analytics (`modules/reports/resolution_time.php`)**: Average, fastest, and slowest resolution turnaround times with duration brackets (&lt;1h, 1h–8h, 8h–24h, 1d–3d, &gt;3d) and recently resolved ticket details.
+- **Secure CSV Export Engine (`modules/reports/export.php`)**: Native streaming export for Tickets, Agents, Customers, and Departments with CSV Formula Injection protection (`=`, `+`, `-`, `@`), UTF-8 BOM encoding, parameter filtering, and `report_exported` activity logging.
+- **Dashboard Enhancements (`index.php`)**:
+  - *Admin*: Added date range switchers (`Today`, `Last 7 Days`, `Last 30 Days`), live First Response & Resolution Speed KPI cards, and direct unassigned ticket links.
+  - *Agent*: Scoped strictly to personal assigned tickets, personal First Response Speed, and personal Resolution Speed.
+  - *Customer*: Clean personal dashboard scoped to own tickets and quick action links.
+
 ---
 
 ## 🗄️ Database Architecture & Migration Order
@@ -68,6 +82,7 @@ database/
 ├── 04_advanced_ticket_workflow.sql   # Phase 04: tags, relations, canned responses, activity logs
 ├── 05_notifications_settings.sql     # Phase 05: notifications, preferences, system logs, settings
 ├── 06_knowledge_base.sql             # Phase 06: categories, articles, faqs, default KB seeds
+├── 07_reports.sql                    # Phase 07: documentation & performance indexes
 └── README.md                         # Migration documentation
 ```
 
@@ -91,6 +106,9 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # 6. Phase 06: Knowledge Base, Categories, Articles & FAQs
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\06_knowledge_base.sql"
+
+# 7. Phase 07: Reports & Analytics Performance Indexes
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\07_reports.sql"
 ```
 
 ---
@@ -106,10 +124,9 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 ## 🔒 Security Measures
 
 1. **SQL Injection Prevention**: All database queries strictly use PDO prepared statements with parameterized inputs.
-2. **Cross-Site Scripting (XSS)**: User-supplied output is escaped via `htmlspecialchars()` using `e()` and content renderer sanitization.
+2. **Cross-Site Scripting (XSS)**: User-supplied output is escaped via `htmlspecialchars()` using `e()`.
 3. **Cross-Site Request Forgery (CSRF)**: All POST requests require a verified CSRF session token.
-4. **IDOR & Role Guards**: Server-side authorization checks ensure users can only access resources and actions permitted by their role.
-5. **Upload Protection**: Whitelist file extension and MIME validation, randomized filenames, and `.htaccess` execution prevention in upload folders.
-6. **Admin Deactivation Protection**: Server-side checks guarantee at least one active administrator remains at all times.
-7. **Category Deletion Safety**: Cannot delete a category that contains articles; protects against accidental content loss.
-8. **Sensitive Secret Protection**: SMTP passwords and auth secrets are never displayed back in forms or logged to activity logs.
+4. **Role Guards & Access Controls**: Server-side authorization checks (`require_role(ROLE_ADMIN)`) prevent unauthorized report and export viewing.
+5. **CSV Formula Injection Mitigation**: All exported spreadsheet values beginning with `=`, `+`, `-`, `@` are safely sanitized.
+6. **Credential Privacy**: Sensitive data (passwords, salts, session tokens, SMTP credentials) are strictly excluded from CSV exports and report interfaces.
+7. **Division-by-Zero Safety**: All calculations are mathematically guarded against empty datasets (`safe_percentage()`).

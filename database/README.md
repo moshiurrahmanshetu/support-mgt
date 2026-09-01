@@ -1,4 +1,4 @@
-# Database Documentation — Phases 01, 02, 03, 04, 05 & 06
+# Database Documentation — Phases 01 through 07
 
 This directory contains the database migration scripts and seed data for **support-mgt**.
 
@@ -24,11 +24,6 @@ Contains:
 - `departments`: Table storing support departments (`id`, `name`, `description`, `status`).
 - Adds `department_id` to `users` for agent department assignment.
 - Adds `department_id` to `tickets` for ticket department integration.
-- **Initial Department Seeds**:
-  - Technical Support
-  - Billing & Payment
-  - Sales & Account Inquiry
-  - General Support
 
 ### 4. `04_advanced_ticket_workflow.sql` (Phase 04)
 Contains:
@@ -36,28 +31,25 @@ Contains:
 - `ticket_tags`: Custom ticket tags (`id`, `name`, `color`).
 - `ticket_tag_relations`: Pivot table for many-to-many ticket tag association (`ticket_id`, `tag_id`).
 - `canned_responses`: Pre-written response templates for staff (`id`, `title`, `content`, `created_by`).
-- `ticket_activity_logs`: Audit trail for ticket lifecycle events (`ticket_id`, `user_id`, `action`, `old_value`, `new_value`, `description`).
-- **Initial Seeds**:
-  - 8 Default Ticket Tags
-  - 4 Default Canned Responses
+- `ticket_activity_logs`: Audit trail for ticket lifecycle events.
 
 ### 5. `05_notifications_settings.sql` (Phase 05)
 Contains:
 - `notifications`: In-app notification inbox records (`id`, `user_id`, `title`, `message`, `type`, `reference_type`, `reference_id`, `is_read`, `created_at`).
-- `user_notification_preferences`: Fine-grained personal notification preferences (`id`, `user_id`, `email_ticket_created`, `email_ticket_assigned`, `email_ticket_reply`, `email_ticket_status`, `email_ticket_reopened`, `in_app_enabled`).
-- `activity_logs`: System-level activity audit trail (`id`, `user_id`, `module`, `action`, `description`, `ip_address`, `user_agent`, `reference_type`, `reference_id`, `created_at`).
-- `settings`: Application configuration repository (`id`, `setting_key`, `setting_value`, `setting_type`, `updated_at`).
+- `user_notification_preferences`: Fine-grained personal notification preferences.
+- `activity_logs`: System-level activity audit trail.
+- `settings`: Application configuration repository.
 
 ### 6. `06_knowledge_base.sql` (Phase 06)
 Contains:
 - `knowledge_base_categories`: Table for topic categories (`id`, `name`, `slug` UNIQUE, `description`, `icon`, `sort_order`, `status`, `created_by` FK).
 - `knowledge_base_articles`: Table for self-service documentation (`id`, `category_id` FK, `title`, `slug` UNIQUE, `excerpt`, `content`, `featured_image`, `status`, `is_featured`, `view_count`, `created_by` FK, `published_at`).
 - `faqs`: Table for frequently asked questions (`id`, `question`, `answer`, `sort_order`, `status`, `created_by` FK).
-- **Initial Seeds**:
-  - 4 Default Topic Categories (Getting Started, Account & Security, Billing & Invoicing, Troubleshooting).
-  - 4 Default Published Help Articles.
-  - 4 Default Active FAQs.
-  - `knowledge_base_enabled` = '1' and `faq_enabled` = '1' in `settings`.
+
+### 7. `07_reports.sql` (Phase 07)
+Contains:
+- Performance optimization indexes for `tickets` table (`idx_tkt_created_at`, `idx_tkt_first_response`, `idx_tkt_resolved_at`).
+- Explanatory architectural documentation noting that all reports are computed live from existing application data with no static/duplicate report tables.
 
 ## Database Import Order in XAMPP
 
@@ -81,4 +73,7 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # Phase 06: Knowledge Base, Categories, Articles & FAQs
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\06_knowledge_base.sql"
+
+# Phase 07: Reports & Analytics Performance Indexes
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\07_reports.sql"
 ```

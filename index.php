@@ -6,12 +6,18 @@
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth_check.php';
 require_once __DIR__ . '/includes/notifications.php';
+require_once __DIR__ . '/includes/reports.php';
 
 // Protect Dashboard - requires authentication
 require_login();
 
 $user = current_user();
 $db = get_db();
+
+// Parse Dashboard Date Range (Default: Last 7 Days for quick dashboard view)
+$dashDateRange = get_report_date_range($_GET, 'last_7_days');
+$dashFrom = $dashDateRange['from'];
+$dashTo = $dashDateRange['to'];
 
 // ----------------------------------------------------
 // Real Dashboard Analytics Queries
@@ -24,7 +30,9 @@ $adminStats = [
     'total_departments' => 0,
     'active_departments'=> 0,
     'total_tickets'     => 0,
-    'open_tickets'      => 0
+    'open_tickets'      => 0,
+    'avg_first_response'=> null,
+    'avg_resolution'    => null
 ];
 
 $ticketStats = [
@@ -34,6 +42,11 @@ $ticketStats = [
     'pending'     => 0,
     'resolved'    => 0,
     'closed'      => 0
+];
+
+$agentPerformance = [
+    'avg_first_response' => null,
+    'avg_resolution'     => null
 ];
 
 if ($user['role'] === ROLE_ADMIN) {
@@ -57,8 +70,23 @@ if ($user['role'] === ROLE_ADMIN) {
     ");
     $adminStats = $adminOverviewStmt->fetch() ?: $adminStats;
 
-    // Detailed Ticket Breakdown
-    $statStmt = $db->query("
+    // Period Speed Performance (Admin)
+    $speedStmt = $db->prepare("
+        SELECT 
+            AVG(CASE WHEN first_response_at IS NOT NULL THEN TIMESTAMPDIFF(SECOND, created_at, first_response_at) END) AS avg_first_response,
+            AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(SECOND, created_at, resolved_at) END) AS avg_resolution
+        FROM tickets
+        WHERE created_at BETWEEN ? AND ?
+    ");
+    $speedStmt->execute([$dashFrom, $dashTo]);
+    $speedRow = $speedStmt->fetch();
+    if ($speedRow) {
+        $adminStats['avg_first_response'] = $speedRow['avg_first_response'];
+        $adminStats['avg_resolution'] = $speedRow['avg_resolution'];
+    }
+
+    // Detailed Ticket Breakdown (Selected Period)
+    $statStmt = $db->prepare("
         SELECT 
             COUNT(*) AS total,
             SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open_count,
@@ -67,7 +95,9 @@ if ($user['role'] === ROLE_ADMIN) {
             SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) AS resolved_count,
             SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) AS closed_count
         FROM tickets
+        WHERE created_at BETWEEN ? AND ?
     ");
+    $statStmt->execute([$dashFrom, $dashTo]);
     $row = $statStmt->fetch();
     if ($row) {
         $ticketStats['total']       = (int)($row['total'] ?? 0);
@@ -99,7 +129,9 @@ if ($user['role'] === ROLE_ADMIN) {
             SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress_count,
             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count,
             SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) AS resolved_count,
-            SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) AS closed_count
+            SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) AS closed_count,
+            AVG(CASE WHEN first_response_at IS NOT NULL THEN TIMESTAMPDIFF(SECOND, created_at, first_response_at) END) AS avg_first_resp,
+            AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(SECOND, created_at, resolved_at) END) AS avg_res
         FROM tickets
         WHERE assigned_to = ?
     ");
@@ -112,6 +144,8 @@ if ($user['role'] === ROLE_ADMIN) {
         $ticketStats['pending']     = (int)($row['pending_count'] ?? 0);
         $ticketStats['resolved']    = (int)($row['resolved_count'] ?? 0);
         $ticketStats['closed']      = (int)($row['closed_count'] ?? 0);
+        $agentPerformance['avg_first_response'] = $row['avg_first_resp'];
+        $agentPerformance['avg_resolution'] = $row['avg_res'];
     }
 
     // Recent Assigned Tickets
@@ -209,6 +243,11 @@ include __DIR__ . '/includes/header.php';
                             <i class="bi bi-bell-fill"></i> <?= $dashUnreadCount; ?> Unread <?= ($dashUnreadCount === 1) ? 'Notification' : 'Notifications'; ?>
                         </a>
                     <?php endif; ?>
+                    <?php if ($user['role'] === ROLE_ADMIN): ?>
+                        <a href="<?= url('modules/reports/index.php'); ?>" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-graph-up"></i> Reports & Analytics
+                        </a>
+                    <?php endif; ?>
                     <a href="<?= url('modules/tickets/create.php'); ?>" class="btn btn-primary btn-sm">
                         <i class="bi bi-plus-circle"></i> Create Ticket
                     </a>
@@ -222,6 +261,18 @@ include __DIR__ . '/includes/header.php';
 
     <!-- Admin Master Metrics (Admin Only) -->
     <?php if ($user['role'] === ROLE_ADMIN): ?>
+        <!-- Quick Period Switcher for Dashboard -->
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="fs-7 fw-bold text-dark text-uppercase">
+                <i class="bi bi-speedometer me-1 text-primary"></i>Executive Overview
+            </span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Dashboard Date Filter">
+                <a href="<?= url('index.php?date_range=today'); ?>" class="btn <?= ($dashDateRange['preset'] === 'today') ? 'btn-primary' : 'btn-outline-secondary'; ?>">Today</a>
+                <a href="<?= url('index.php?date_range=last_7_days'); ?>" class="btn <?= ($dashDateRange['preset'] === 'last_7_days') ? 'btn-primary' : 'btn-outline-secondary'; ?>">Last 7 Days</a>
+                <a href="<?= url('index.php?date_range=last_30_days'); ?>" class="btn <?= ($dashDateRange['preset'] === 'last_30_days') ? 'btn-primary' : 'btn-outline-secondary'; ?>">Last 30 Days</a>
+            </div>
+        </div>
+
         <div class="row g-3 mb-4">
             <!-- Customers -->
             <div class="col-6 col-md-3">
@@ -259,6 +310,45 @@ include __DIR__ . '/includes/header.php';
                 </div>
             </div>
 
+            <!-- Avg First Response -->
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Avg First Response</span>
+                            <div class="p-2 rounded bg-light text-info">
+                                <i class="bi bi-stopwatch fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= format_duration($adminStats['avg_first_response']); ?></div>
+                        <span class="text-muted fs-8">
+                            <a href="<?= url('modules/reports/response_time.php'); ?>" class="text-primary text-decoration-none fw-medium">View Speed Report</a>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Avg Resolution -->
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Avg Resolution</span>
+                            <div class="p-2 rounded bg-light text-success">
+                                <i class="bi bi-check2-circle fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= format_duration($adminStats['avg_resolution']); ?></div>
+                        <span class="text-muted fs-8">
+                            <a href="<?= url('modules/reports/resolution_time.php'); ?>" class="text-success text-decoration-none fw-medium">View Resolution Report</a>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System & Support Overview Row -->
+        <div class="row g-3 mb-4">
             <!-- Departments -->
             <div class="col-6 col-md-3">
                 <div class="card h-100 border shadow-sm">
@@ -277,30 +367,26 @@ include __DIR__ . '/includes/header.php';
                 </div>
             </div>
 
-            <!-- Total Tickets -->
+            <!-- Unassigned Tickets -->
             <div class="col-6 col-md-3">
                 <div class="card h-100 border shadow-sm">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center justify-content-between mb-1">
-                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Support Tickets</span>
-                            <div class="p-2 rounded bg-light text-primary">
-                                <i class="bi bi-ticket-perforated fs-5"></i>
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Unassigned Tickets</span>
+                            <div class="p-2 rounded bg-light text-danger">
+                                <i class="bi bi-person-x fs-5"></i>
                             </div>
                         </div>
-                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_tickets']; ?></div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)($adminStats['unassigned_tickets'] ?? 0); ?></div>
                         <span class="text-muted fs-8">
-                            <span class="text-primary fw-medium"><?= (int)$adminStats['open_tickets']; ?> Open</span> &bull; 
-                            <a href="<?= url('modules/tickets/index.php?agent_id=-1'); ?>" class="text-danger fw-medium text-decoration-none"><?= (int)($adminStats['unassigned_tickets'] ?? 0); ?> Unassigned</a>
+                            <a href="<?= url('modules/tickets/index.php?agent_id=-1'); ?>" class="text-danger fw-medium text-decoration-none">Assign Agent &rarr;</a>
                         </span>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Admin Knowledge Base Statistics Row -->
-        <div class="row g-3 mb-4">
             <!-- KB Articles -->
-            <div class="col-6 col-md-4">
+            <div class="col-6 col-md-3">
                 <div class="card h-100 border shadow-sm">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center justify-content-between mb-1">
@@ -311,31 +397,14 @@ include __DIR__ . '/includes/header.php';
                         </div>
                         <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_articles']; ?></div>
                         <span class="text-muted fs-8">
-                            <span class="text-success fw-medium"><?= (int)$adminStats['published_articles']; ?> Published</span> &bull; 
-                            <span class="text-secondary fw-medium"><?= (int)$adminStats['draft_articles']; ?> Draft</span>
+                            <span class="text-success fw-medium"><?= (int)$adminStats['published_articles']; ?> Published</span>
                         </span>
                     </div>
                 </div>
             </div>
 
-            <!-- KB Categories -->
-            <div class="col-6 col-md-4">
-                <div class="card h-100 border shadow-sm">
-                    <div class="card-body p-3">
-                        <div class="d-flex align-items-center justify-content-between mb-1">
-                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">KB Categories</span>
-                            <div class="p-2 rounded bg-light text-warning">
-                                <i class="bi bi-folder fs-5"></i>
-                            </div>
-                        </div>
-                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_categories']; ?></div>
-                        <span class="text-muted fs-8">Active topic sections</span>
-                    </div>
-                </div>
-            </div>
-
             <!-- Active FAQs -->
-            <div class="col-12 col-md-4">
+            <div class="col-6 col-md-3">
                 <div class="card h-100 border shadow-sm">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center justify-content-between mb-1">
@@ -345,7 +414,39 @@ include __DIR__ . '/includes/header.php';
                             </div>
                         </div>
                         <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['active_faqs']; ?></div>
-                        <span class="text-muted fs-8">Published FAQ items</span>
+                        <span class="text-muted fs-8">Public help items</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php elseif ($user['role'] === ROLE_AGENT): ?>
+        <!-- Agent Performance Cards Row -->
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-md-6">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">My Avg First Response</span>
+                            <div class="p-2 rounded bg-light text-primary">
+                                <i class="bi bi-stopwatch fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= format_duration($agentPerformance['avg_first_response']); ?></div>
+                        <span class="text-muted fs-8">Average speed for first staff reply</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">My Avg Resolution Speed</span>
+                            <div class="p-2 rounded bg-light text-success">
+                                <i class="bi bi-check2-circle fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= format_duration($agentPerformance['avg_resolution']); ?></div>
+                        <span class="text-muted fs-8">Average time to solve assigned tickets</span>
                     </div>
                 </div>
             </div>

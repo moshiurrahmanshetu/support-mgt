@@ -223,6 +223,18 @@ function is_nav_active(string $target, string $currentScript, string $activePage
                 </a>
             </li>
 
+            <!-- Reports & Analytics -->
+            <li class="nav-item">
+                <a href="<?= url('modules/reports/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('reports', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Reports & Analytics">
+                    <i class="bi bi-graph-up"></i>
+                    <span class="nav-text">Reports</span>
+                </a>
+            </li>
+
             <!-- System Settings -->
             <li class="nav-item">
                 <a href="<?= url('modules/settings/index.php'); ?>" 
