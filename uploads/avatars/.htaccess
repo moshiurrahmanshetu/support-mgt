@@ -1,0 +1,13 @@
+# Disable Script Execution in Uploads Directory
+<FilesMatch "(?i)\.(php|phtml|php3|php4|php5|php7|php8|phps|cgi|pl|exe|sh|py|asp|aspx)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Disable Directory Indexing
+Options -Indexes
+
+# Set correct MIME types for images
+AddType image/jpeg .jpg .jpeg
+AddType image/png .png
+AddType image/webp .webp

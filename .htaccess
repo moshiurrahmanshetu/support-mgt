@@ -1,0 +1,31 @@
+# ----------------------------------------------------------------------
+# Support Management System (.htaccess)
+# ----------------------------------------------------------------------
+
+# Disable Directory Browsing
+Options -Indexes
+
+# Set Default Charset
+AddDefaultCharset UTF-8
+
+# Protect Sensitive Configuration & Database Files
+<FilesMatch "(?i)\.(sql|env|ini|log|sh|bak|config)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Block access to hidden files/directories (like .git)
+<FilesMatch "^\.">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Protect database directory and config files directly
+<IfModule mod_authz_core.c>
+    <Files "01_authentication.sql">
+        Require all denied
+    </Files>
+</IfModule>
+
+# Set Default Document
+DirectoryIndex index.php
