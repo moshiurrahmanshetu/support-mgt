@@ -121,155 +121,179 @@ function is_nav_active(string $target, string $currentScript, string $activePage
             </a>
         </li>
 
-        <?php if ($user && $user['role'] === ROLE_ADMIN): ?>
-            <!-- Admin Management Section -->
+        <?php if ($user && (has_role(['admin', 'administrator', 'support_manager']) || is_admin_user())): ?>
+            <!-- Admin / Management Section -->
             <li class="nav-header">
                 <span class="nav-header-text">Administration</span>
             </li>
 
             <!-- KB Articles -->
-            <li class="nav-item">
-                <a href="<?= url('modules/knowledge_base/articles/index.php'); ?>" 
-                   class="nav-link-custom <?= ($activePage === 'kb_articles' || strpos($currentScript, 'articles') !== false) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="KB Articles">
-                    <i class="bi bi-file-earmark-text"></i>
-                    <span class="nav-text">KB Articles</span>
-                </a>
-            </li>
+            <?php if (has_permission('knowledge_base.edit')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/knowledge_base/articles/index.php'); ?>" 
+                       class="nav-link-custom <?= ($activePage === 'kb_articles' || strpos($currentScript, 'articles') !== false) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="KB Articles">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span class="nav-text">KB Articles</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- KB Categories -->
-            <li class="nav-item">
-                <a href="<?= url('modules/knowledge_base/categories/index.php'); ?>" 
-                   class="nav-link-custom <?= ($activePage === 'kb_categories' || strpos($currentScript, 'categories') !== false) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="KB Categories">
-                    <i class="bi bi-folder"></i>
-                    <span class="nav-text">KB Categories</span>
-                </a>
-            </li>
+            <?php if (has_permission('knowledge_base.edit')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/knowledge_base/categories/index.php'); ?>" 
+                       class="nav-link-custom <?= ($activePage === 'kb_categories' || strpos($currentScript, 'categories') !== false) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="KB Categories">
+                        <i class="bi bi-folder"></i>
+                        <span class="nav-text">KB Categories</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- FAQs -->
-            <li class="nav-item">
-                <a href="<?= url('modules/knowledge_base/faqs/index.php'); ?>" 
-                   class="nav-link-custom <?= ($activePage === 'kb_faqs' || strpos($currentScript, 'faqs') !== false) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="Manage FAQs">
-                    <i class="bi bi-question-circle"></i>
-                    <span class="nav-text">FAQs</span>
-                </a>
-            </li>
+            <?php if (has_permission('knowledge_base.edit')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/knowledge_base/faqs/index.php'); ?>" 
+                       class="nav-link-custom <?= ($activePage === 'kb_faqs' || strpos($currentScript, 'faqs') !== false) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Manage FAQs">
+                        <i class="bi bi-question-circle"></i>
+                        <span class="nav-text">FAQs</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- Customers -->
-            <li class="nav-item">
-                <a href="<?= url('modules/customers/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('customers', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="Customers">
-                    <i class="bi bi-people"></i>
-                    <span class="nav-text">Customers</span>
-                </a>
-            </li>
+            <?php if (has_permission('customers.view')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/customers/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('customers', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Customers">
+                        <i class="bi bi-people"></i>
+                        <span class="nav-text">Customers</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- Agents -->
-            <li class="nav-item">
-                <a href="<?= url('modules/agents/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('agents', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="Support Agents">
-                    <i class="bi bi-headset"></i>
-                    <span class="nav-text">Support Agents</span>
-                </a>
-            </li>
+            <?php if (has_permission('agents.view')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/agents/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('agents', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Support Agents">
+                        <i class="bi bi-headset"></i>
+                        <span class="nav-text">Support Agents</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- Departments -->
-            <li class="nav-item">
-                <a href="<?= url('modules/departments/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('departments', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="Departments">
-                    <i class="bi bi-building"></i>
-                    <span class="nav-text">Departments</span>
-                </a>
-            </li>
+            <?php if (has_permission('departments.view')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/departments/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('departments', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Departments">
+                        <i class="bi bi-building"></i>
+                        <span class="nav-text">Departments</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- Tags -->
-            <li class="nav-item">
-                <a href="<?= url('modules/tags/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('tags', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="Ticket Tags">
-                    <i class="bi bi-tags"></i>
-                    <span class="nav-text">Ticket Tags</span>
-                </a>
-            </li>
+            <?php if (has_permission('tags.view')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/tags/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('tags', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Ticket Tags">
+                        <i class="bi bi-tags"></i>
+                        <span class="nav-text">Ticket Tags</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- User Management -->
-            <li class="nav-item">
-                <a href="<?= url('modules/users/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('users', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="User Management">
-                    <i class="bi bi-people-fill"></i>
-                    <span class="nav-text">Users</span>
-                </a>
-            </li>
+            <?php if (has_permission('users.view')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/users/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('users', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="User Management">
+                        <i class="bi bi-people-fill"></i>
+                        <span class="nav-text">Users</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- Role Management -->
-            <li class="nav-item">
-                <a href="<?= url('modules/roles/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('roles', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="Role Management">
-                    <i class="bi bi-shield-lock"></i>
-                    <span class="nav-text">Roles</span>
-                </a>
-            </li>
+            <?php if (has_permission('roles.view')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/roles/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('roles', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Role Management">
+                        <i class="bi bi-shield-lock"></i>
+                        <span class="nav-text">Roles</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- System Activity Logs -->
-            <li class="nav-item">
-                <a href="<?= url('modules/activity_logs/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('activity_logs', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="Activity Logs">
-                    <i class="bi bi-clock-history"></i>
-                    <span class="nav-text">Activity Logs</span>
-                </a>
-            </li>
+            <?php if (has_permission('activity_logs.view')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/activity_logs/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('activity_logs', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Activity Logs">
+                        <i class="bi bi-clock-history"></i>
+                        <span class="nav-text">Activity Logs</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- Reports & Analytics -->
-            <li class="nav-item">
-                <a href="<?= url('modules/reports/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('reports', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="Reports & Analytics">
-                    <i class="bi bi-graph-up"></i>
-                    <span class="nav-text">Reports</span>
-                </a>
-            </li>
+            <?php if (has_permission('reports.view')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/reports/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('reports', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Reports & Analytics">
+                        <i class="bi bi-graph-up"></i>
+                        <span class="nav-text">Reports</span>
+                    </a>
+                </li>
+            <?php endif; ?>
 
             <!-- System Settings -->
-            <li class="nav-item">
-                <a href="<?= url('modules/settings/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('settings', $currentScript, $activePage) ? 'active' : ''; ?>" 
-                   data-bs-toggle="tooltip" 
-                   data-bs-placement="right" 
-                   title="System Settings">
-                    <i class="bi bi-gear"></i>
-                    <span class="nav-text">Settings</span>
-                </a>
-            </li>
+            <?php if (has_permission('settings.view')): ?>
+                <li class="nav-item">
+                    <a href="<?= url('modules/settings/index.php'); ?>" 
+                       class="nav-link-custom <?= is_nav_active('settings', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="System Settings">
+                        <i class="bi bi-gear"></i>
+                        <span class="nav-text">Settings</span>
+                    </a>
+                </li>
+            <?php endif; ?>
         <?php endif; ?>
 
         <!-- Account Section Header -->
