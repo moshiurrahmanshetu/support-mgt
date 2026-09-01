@@ -98,51 +98,110 @@ database/
 └── README.md                         # Migration documentation
 ```
 
-### Import Commands in XAMPP (MySQL)
+### Phase 08: User, Role & Permission Management + Customer Registration
+- **User Management CRUD**: Complete user lifecycle management with soft delete safety and activity audit logging.
+- **Custom Role Management**: Dynamic role provisioning with custom system tags and deletion guards.
+- **52 Granular Permissions Matrix**: Module-scoped permissions across Dashboard, Tickets, Customers, Agents, Departments, Tags, Canned Responses, Knowledge Base, Reports, Users, Roles, and Settings.
+- **Public Customer Registration**: Instant client sign-up workflow with automated `customer` role assignment and in-app onboarding notifications.
 
-```powershell
-# 1. Phase 01: Core Users & Authentication
-cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\01_authentication.sql"
+### Phase 08.1: New Support Ticket Sidebar Counter & Admin Viewing Tracking
+- **Real-Time Sidebar Counter**: Unread ticket badge indicator for Administrators and Support Managers displaying count of new, unviewed customer tickets.
+- **Automatic Read State Tracking**: Viewing tickets automatically records `admin_viewed_at` timestamp and decrements the counter.
+- **Manual Read/Unread Toggle**: Staff can toggle ticket read state manually from the ticket action bar.
+- **Queue Filtering**: Fast filter for unviewed customer tickets (`status=new`).
 
-# 2. Phase 02: Tickets & Attachments
-cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\02_ticket_management.sql"
+### Phase 09: Professional Marketplace Installation Wizard
+- **WordPress-Style Web Wizard (`install/index.php`)**: Multi-step graphical setup requiring zero manual editing of configuration files.
+- **Master Database Schema (`database/install.sql`)**: Unified, clean SQL installation file containing all 21 tables, foreign key constraints, indexes, system roles, permissions, default settings, and sample knowledge base data with **zero test accounts or demo tickets**.
+- **System Requirements & Permission Scanner**: Live verification of PHP version ($\ge 8.1$), PDO MySQL, JSON, Sessions, Fileinfo, Mbstring, and writable `config/` and `uploads/` directories.
+- **Database Connection Tester**: Interactive test connection verifying database credentials with safe, friendly error handling.
+- **Custom / Default Schema Selection**: Default automatic import of `database/install.sql` or option to upload custom `.sql` files with MIME & size validation.
+- **First Administrator Provisioning**: Secure password hashing (`password_hash()`) and automatic `administrator` role assignment from the installer form.
+- **Automatic Config & Lockfile Generation**: Generates `config/config.php` and creates `config/installed.lock`.
+- **Permanent Installer Lockout**: Server-side blocking preventing re-execution of `/install/` once installed.
+- **Strict UI Aesthetic Compliance**: 100% Solid colors — clean, professional SaaS interface with no CSS gradients.
 
-# 3. Phase 03: Departments & Management
-cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\03_customer_agent_department.sql"
+---
 
-# 4. Phase 04: Advanced Workflows, Tags, Canned Responses & Logs
-cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\04_advanced_ticket_workflow.sql"
+## 📦 Marketplace Package Structure
 
-# 5. Phase 05: Notifications, Preferences, System Logs & Settings
-cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\05_notifications_settings.sql"
-
-# 6. Phase 06: Knowledge Base, Categories, Articles & FAQs
-cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\06_knowledge_base.sql"
-
-# 7. Phase 07: Reports & Analytics Performance Indexes
-cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\07_reports.sql"
-
-# 8. Phase 08: Roles, Permissions, User Roles & Customer Registration
-cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\08_user_role_customer.sql"
+```text
+support-mgt/
+│
+├── assets/                  # CSS, JavaScript, Images, Bootstrap 5 & Icons
+├── auth/                    # Authentication (Login, Register, Password Reset, Logout)
+├── config/                  # Configuration (config.php, constants.php, database.php, installed.lock)
+├── database/                # Master installation schema (install.sql)
+├── includes/                # Shared helpers, headers, footers, sidebar, permissions, CSRF
+├── install/                 # Guided installation wizard
+├── modules/                 # Application modules (Tickets, Users, Roles, KB, Reports, etc.)
+├── uploads/                 # Upload directories (Avatars, Attachments)
+├── .htaccess                # Apache rewrite rules & file protection
+├── index.php                # Main dashboard entry point
+└── README.md                # Documentation & installation guide
 ```
 
 ---
 
-## 👥 Default Administrator Credentials
+## 🛠️ Marketplace Installation Guide
 
-| Role | Email | Password |
-| :--- | :--- | :--- |
-| **Administrator** | `admin@supportmgt.local` | `Admin@123456` |
+For buyers installing SupportDesk CMS on a web hosting server (cPanel, Plesk, VPS, or local Apache/MySQL):
+
+### Step 1: Upload and Extract Files
+1. Download the `support-mgt.zip` marketplace archive.
+2. Upload and extract the archive into your web server document root (e.g. `public_html/` or a subfolder like `public_html/support-mgt/`).
+
+### Step 2: Create a MySQL Database
+1. Open your hosting control panel (cPanel $\rightarrow$ **MySQL Databases** or phpMyAdmin).
+2. Create a new, empty database (e.g. `support_mgt_db`).
+3. Create a database user and assign **ALL PRIVILEGES** to the database.
+
+### Step 3: Open the Web Installer
+1. Open your browser and navigate to your application URL:
+   ```text
+   http://yourdomain.com/
+   or
+   http://localhost/support-mgt/
+   ```
+2. The application will automatically detect that it is not yet installed and redirect to the **Installation Wizard** (`/install/index.php`).
+
+### Step 4: Complete the Installation Wizard
+1. **Welcome**: Click **Start Installation**.
+2. **Requirements Check**: Verify that all system requirements and directory permissions display green checkmarks (✓ Passed).
+3. **Database Configuration**: Enter your Database Host (usually `127.0.0.1` or `localhost`), Database Name, Username, and Password. Click **Test Connection** to verify connectivity, then click **Continue**.
+4. **Database Schema Import**: Leave the default option selected (`database/install.sql`) and click **Import Schema & Continue**.
+5. **Administrator Setup**: Enter your Full Name, Admin Email Address, and choose a strong Password (minimum 8 characters).
+6. **Installation Complete**: Click **Go to Login** and sign in with your new Administrator credentials.
 
 ---
 
-## 🔒 Security Measures
+## 🔄 Developer Reinstallation Guide
 
-1. **SQL Injection Prevention**: All database queries strictly use PDO prepared statements with parameterized inputs.
-2. **Cross-Site Scripting (XSS)**: User-supplied output is escaped via `htmlspecialchars()` using `e()`.
-3. **Cross-Site Request Forgery (CSRF)**: All POST requests require a verified CSRF session token.
-4. **Server-Side Authorization & Permissions**: Guarded by `require_permission()` and `require_role()`.
-5. **Last Administrator Protection**: Prevents deleting, deactivating, or demoting the last active administrator.
-6. **Registration Role Sanitization**: Public registration ignores any submitted `role` parameter and strictly assigns the `customer` role server-side.
-7. **Soft Delete Safety**: User deletions set `deleted_at` timestamp, preserving historical ticket and message audit logs intact.
-8. **CSV Formula Injection Mitigation**: Sanitizes cell values starting with `=`, `+`, `-`, `@`.
+The installer creates a security lock at `config/installed.lock` to prevent unauthorized reinstallation. If you need to reinstall the system for testing or development purposes:
+
+1. **Backup Data**: If you have existing data you wish to preserve, create a backup of your MySQL database.
+2. **Delete the Installation Lock File**:
+   - Manually delete `config/installed.lock` on your server.
+3. **Prepare a Fresh Database**:
+   - In MySQL / phpMyAdmin, drop the existing tables or create a fresh empty database.
+   - *Note: Do not reinstall over a populated database without dropping tables first to avoid table conflict errors.*
+4. **Open the Application URL**:
+   - Navigate to `http://localhost/support-mgt/` in your browser.
+   - The installer will start again from Step 1.
+5. **Complete the Wizard**:
+   - Follow the wizard steps to re-import the schema and create your new Administrator account.
+
+---
+
+## 🔒 Security & Architecture Measures
+
+1. **Permanent Installer Lockout**: Direct access to `/install/` or `/install/process.php` is strictly denied once `config/installed.lock` exists.
+2. **Server-Side Authorization & Permissions**: Guarded by `require_permission()`, `require_role()`, and `is_admin_user()`.
+3. **SQL Injection Prevention**: All database queries strictly use PDO prepared statements with parameterized inputs.
+4. **Cross-Site Scripting (XSS)**: User-supplied output is escaped via `htmlspecialchars()` using `e()`.
+5. **Cross-Site Request Forgery (CSRF)**: All installer and application POST requests require a verified CSRF session token.
+6. **Direct File Protection (.htaccess)**: Denies public web browser access to `*.sql`, `*.lock`, `*.env`, `*.ini`, `*.log`, and `*.config` files.
+7. **Last Administrator Protection**: Prevents deleting, deactivating, or demoting the last active administrator.
+8. **Registration Role Sanitization**: Public registration ignores any submitted `role` parameter and strictly assigns the `customer` role server-side.
+9. **Soft Delete Safety**: User deletions set `deleted_at` timestamp, preserving historical ticket and message audit logs intact.
+10. **CSV Formula Injection Mitigation**: Sanitizes cell values starting with `=`, `+`, `-`, `@`.

@@ -22,6 +22,44 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 /**
+ * Check if the application has been installed via lock file
+ */
+if (!function_exists('is_system_installed')) {
+    function is_system_installed(): bool {
+        return file_exists(__DIR__ . '/../config/installed.lock');
+    }
+}
+
+/**
+ * Global installation redirect guard
+ */
+if (!function_exists('check_installation')) {
+    function check_installation(): void {
+        if (php_sapi_name() === 'cli') {
+            return;
+        }
+
+        if (!is_system_installed()) {
+            $script = $_SERVER['SCRIPT_NAME'] ?? '';
+            if (strpos($script, '/install/') === false && strpos($script, '\\install\\') === false) {
+                $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? 80) == 443;
+                $scheme = $isHttps ? 'https' : 'http';
+                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $scriptDir = dirname($script);
+                $cleanBaseDir = trim(str_replace('\\', '/', $scriptDir), '/');
+                $rootBaseDir = preg_replace('#/(modules|auth|includes|config|assets|uploads).*$#i', '', $cleanBaseDir);
+                $installUrl = $scheme . '://' . $host . (!empty($rootBaseDir) ? '/' . $rootBaseDir : '') . '/install/index.php';
+                header('Location: ' . $installUrl);
+                exit;
+            }
+        }
+    }
+}
+
+// Enforce installation check for web requests
+check_installation();
+
+/**
  * Escape string for safe HTML output
  */
 function e(?string $value): string {

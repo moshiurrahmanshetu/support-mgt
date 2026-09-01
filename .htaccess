@@ -8,8 +8,8 @@ Options -Indexes
 # Set Default Charset
 AddDefaultCharset UTF-8
 
-# Protect Sensitive Configuration & Database Files
-<FilesMatch "(?i)\.(sql|env|ini|log|sh|bak|config)$">
+# Protect Sensitive Configuration, Lock & Database Files
+<FilesMatch "(?i)\.(sql|lock|env|ini|log|sh|bak|config)$">
     Order Deny,Allow
     Deny from all
 </FilesMatch>
@@ -20,11 +20,11 @@ AddDefaultCharset UTF-8
     Deny from all
 </FilesMatch>
 
-# Protect database directory and config files directly
+# Apache 2.4+ Direct Protection for Sensitive Files
 <IfModule mod_authz_core.c>
-    <Files "01_authentication.sql">
+    <FilesMatch "(?i)\.(sql|lock|env|ini|log|sh|bak|config)$">
         Require all denied
-    </Files>
+    </FilesMatch>
 </IfModule>
 
 # Set Default Document
