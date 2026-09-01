@@ -1,6 +1,6 @@
 <?php
 /**
- * Ticket Management - Ticket List
+ * Ticket Management - Ticket List (Integrated with Departments)
  */
 
 require_once __DIR__ . '/../../includes/functions.php';
@@ -15,6 +15,7 @@ $db = get_db();
 $search = trim($_GET['q'] ?? '');
 $statusFilter = trim($_GET['status'] ?? '');
 $priorityFilter = trim($_GET['priority'] ?? '');
+$departmentFilter = (int)($_GET['department_id'] ?? 0);
 
 // Build Query based on User Role & Filters
 $whereClauses = [];
@@ -61,6 +62,12 @@ if (!empty($priorityFilter) && in_array($priorityFilter, VALID_PRIORITIES, true)
     $params[] = $priorityFilter;
 }
 
+// Department Filter
+if ($departmentFilter > 0) {
+    $whereClauses[] = 't.department_id = ?';
+    $params[] = $departmentFilter;
+}
+
 $whereSql = !empty($whereClauses) ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
 
 // Count Total matching records
@@ -68,6 +75,7 @@ $countSql = "
     SELECT COUNT(*) 
     FROM tickets t
     JOIN users u ON t.user_id = u.id
+    LEFT JOIN departments d ON t.department_id = d.id
     LEFT JOIN users a ON t.assigned_to = a.id
     $whereSql
 ";
@@ -91,12 +99,14 @@ $ticketsSql = "
         t.status,
         t.created_at,
         t.updated_at,
+        d.name AS department_name,
         u.id AS customer_id,
         u.name AS customer_name,
         u.email AS customer_email,
         a.name AS agent_name
     FROM tickets t
     JOIN users u ON t.user_id = u.id
+    LEFT JOIN departments d ON t.department_id = d.id
     LEFT JOIN users a ON t.assigned_to = a.id
     $whereSql
     ORDER BY t.updated_at DESC
@@ -106,6 +116,10 @@ $ticketsSql = "
 $ticketsStmt = $db->prepare($ticketsSql);
 $ticketsStmt->execute($params);
 $tickets = $ticketsStmt->fetchAll();
+
+// Fetch active departments for filter
+$deptListStmt = $db->query("SELECT id, name FROM departments ORDER BY name ASC");
+$allDepartments = $deptListStmt->fetchAll();
 
 $pageTitle = 'Support Tickets';
 $pageHeader = 'Ticket Management';
@@ -139,7 +153,7 @@ include __DIR__ . '/../../includes/header.php';
         <div class="card-body p-3">
             <form action="<?= url('modules/tickets/index.php'); ?>" method="GET" class="row g-2 align-items-center">
                 <!-- Search Box -->
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-3">
                     <div class="input-group">
                         <span class="input-group-text bg-white text-muted border-end-0">
                             <i class="bi bi-search"></i>
@@ -150,6 +164,18 @@ include __DIR__ . '/../../includes/header.php';
                                value="<?= e($search); ?>" 
                                placeholder="<?= ($user['role'] === ROLE_CUSTOMER) ? 'Search ticket # or subject...' : 'Search ticket #, subject, customer...'; ?>">
                     </div>
+                </div>
+
+                <!-- Department Filter -->
+                <div class="col-6 col-md-3">
+                    <select name="department_id" class="form-select">
+                        <option value="">All Departments</option>
+                        <?php foreach ($allDepartments as $dept): ?>
+                            <option value="<?= $dept['id']; ?>" <?= ($departmentFilter === (int)$dept['id']) ? 'selected' : ''; ?>>
+                                <?= e($dept['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <!-- Status Filter -->
@@ -176,22 +202,12 @@ include __DIR__ . '/../../includes/header.php';
                     </select>
                 </div>
 
-                <!-- Agent View Mode (for Agents) -->
-                <?php if ($user['role'] === ROLE_AGENT): ?>
-                <div class="col-6 col-md-2">
-                    <select name="view" class="form-select">
-                        <option value="assigned" <?= (($_GET['view'] ?? 'assigned') === 'assigned') ? 'selected' : ''; ?>>Assigned to Me</option>
-                        <option value="all" <?= (($_GET['view'] ?? '') === 'all') ? 'selected' : ''; ?>>All Tickets</option>
-                    </select>
-                </div>
-                <?php endif; ?>
-
                 <!-- Buttons -->
-                <div class="col-12 col-md d-flex gap-2">
+                <div class="col-6 col-md d-flex gap-2">
                     <button type="submit" class="btn btn-secondary flex-grow-1">
                         <i class="bi bi-funnel"></i> Filter
                     </button>
-                    <?php if (!empty($search) || !empty($statusFilter) || !empty($priorityFilter) || isset($_GET['view'])): ?>
+                    <?php if (!empty($search) || !empty($statusFilter) || !empty($priorityFilter) || $departmentFilter > 0 || isset($_GET['view'])): ?>
                         <a href="<?= url('modules/tickets/index.php'); ?>" class="btn btn-outline-secondary" title="Reset Filters">
                             <i class="bi bi-arrow-counterclockwise"></i>
                         </a>
@@ -213,10 +229,11 @@ include __DIR__ . '/../../includes/header.php';
                             <?php if ($user['role'] !== ROLE_CUSTOMER): ?>
                                 <th class="py-3">Customer</th>
                             <?php endif; ?>
+                            <th class="py-3">Department</th>
                             <th class="py-3" style="width: 100px;">Priority</th>
                             <th class="py-3" style="width: 120px;">Status</th>
                             <th class="py-3">Assigned To</th>
-                            <th class="py-3" style="width: 150px;">Last Activity</th>
+                            <th class="py-3" style="width: 140px;">Last Activity</th>
                             <th class="pe-3 py-3 text-end" style="width: 90px;">Action</th>
                         </tr>
                     </thead>
@@ -245,6 +262,17 @@ include __DIR__ . '/../../includes/header.php';
                                             <div class="text-muted fs-8"><?= e($ticket['customer_email']); ?></div>
                                         </td>
                                     <?php endif; ?>
+
+                                    <!-- Department -->
+                                    <td>
+                                        <?php if (!empty($ticket['department_name'])): ?>
+                                            <span class="badge bg-light text-dark border">
+                                                <i class="bi bi-building me-1 text-secondary"></i><?= e($ticket['department_name']); ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted small fst-italic">General</span>
+                                        <?php endif; ?>
+                                    </td>
 
                                     <!-- Priority Badge -->
                                     <td>
@@ -282,13 +310,13 @@ include __DIR__ . '/../../includes/header.php';
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="<?= ($user['role'] !== ROLE_CUSTOMER) ? 8 : 7; ?>" class="text-center py-5 text-muted">
+                                <td colspan="<?= ($user['role'] !== ROLE_CUSTOMER) ? 9 : 8; ?>" class="text-center py-5 text-muted">
                                     <div class="mb-2">
                                         <i class="bi bi-inbox fs-1 text-secondary"></i>
                                     </div>
                                     <h5 class="h6 fw-bold">No support tickets found</h5>
                                     <p class="small mb-3">
-                                        <?php if (!empty($search) || !empty($statusFilter) || !empty($priorityFilter)): ?>
+                                        <?php if (!empty($search) || !empty($statusFilter) || !empty($priorityFilter) || $departmentFilter > 0): ?>
                                             No tickets match your filter criteria. Try resetting the filters.
                                         <?php else: ?>
                                             You do not have any support tickets yet.

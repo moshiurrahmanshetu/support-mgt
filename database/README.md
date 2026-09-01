@@ -1,4 +1,4 @@
-# Database Documentation — Phase 01 & Phase 02
+# Database Documentation — Phase 01, Phase 02 & Phase 03
 
 This directory contains the database migration scripts and seed data for **support-mgt**.
 
@@ -19,7 +19,20 @@ Contains:
 - `ticket_messages`: Message history table storing replies and internal staff notes (`message_type`: `reply` | `internal_note`).
 - `ticket_attachments`: Secure attachment records (`original_name`, `stored_name`, `mime_type`, `file_size`).
 
-## Import Order in XAMPP
+### 3. `03_customer_agent_department.sql` (Phase 03)
+Contains:
+- `departments`: Table storing support departments (`id`, `name`, `description`, `status`).
+- Adds `department_id` to `users` for agent department assignment.
+- Adds `department_id` to `tickets` for ticket department integration.
+- **Initial Department Seeds**:
+  - Technical Support
+  - Billing & Payment
+  - Sales & Account Inquiry
+  - General Support
+
+## Database Import Order in XAMPP
+
+Execute the SQL files in dependency order:
 
 ```powershell
 # Phase 01: Authentication
@@ -27,4 +40,7 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # Phase 02: Ticket Management Core
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\02_ticket_management.sql"
+
+# Phase 03: Customer, Agent & Department Management
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\03_customer_agent_department.sql"
 ```

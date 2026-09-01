@@ -30,9 +30,11 @@ if ($ticketId <= 0) {
 $db = get_db();
 
 // Verify Ticket exists
-$ticketStmt = $db->prepare("SELECT id FROM tickets WHERE id = ? LIMIT 1");
+$ticketStmt = $db->prepare("SELECT id, department_id FROM tickets WHERE id = ? LIMIT 1");
 $ticketStmt->execute([$ticketId]);
-if (!$ticketStmt->fetch()) {
+$ticket = $ticketStmt->fetch();
+
+if (!$ticket) {
     flash('danger', 'Ticket not found.');
     redirect('modules/tickets/index.php');
 }
@@ -40,7 +42,13 @@ if (!$ticketStmt->fetch()) {
 // Validate Agent if specified
 $agentName = 'Unassigned';
 if ($assignedTo !== null) {
-    $agentStmt = $db->prepare("SELECT id, name FROM users WHERE id = ? AND role = 'agent' AND status = 'active' LIMIT 1");
+    $agentStmt = $db->prepare("
+        SELECT u.id, u.name, u.department_id, d.status AS dept_status
+        FROM users u 
+        LEFT JOIN departments d ON u.department_id = d.id
+        WHERE u.id = ? AND u.role = 'agent' AND u.status = 'active' 
+        LIMIT 1
+    ");
     $agentStmt->execute([$assignedTo]);
     $agent = $agentStmt->fetch();
 
@@ -48,6 +56,13 @@ if ($assignedTo !== null) {
         flash('danger', 'Selected user is not an active support agent.');
         redirect('modules/tickets/view.php?id=' . $ticketId);
     }
+
+    // Ensure agent is not assigned to an inactive department if they belong to one
+    if (!empty($agent['department_id']) && $agent['dept_status'] === STATUS_INACTIVE) {
+        flash('danger', 'Cannot assign an agent belonging to an inactive department.');
+        redirect('modules/tickets/view.php?id=' . $ticketId);
+    }
+
     $agentName = $agent['name'];
 }
 

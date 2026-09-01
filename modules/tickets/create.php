@@ -1,6 +1,6 @@
 <?php
 /**
- * Ticket Management - Create New Ticket
+ * Ticket Management - Create New Ticket (Integrated with Departments)
  */
 
 require_once __DIR__ . '/../../includes/functions.php';
@@ -13,11 +13,16 @@ $user = current_user();
 $errors = [];
 $db = get_db();
 
+// Fetch Active Departments
+$deptStmt = $db->query("SELECT id, name FROM departments WHERE status = 'active' ORDER BY name ASC");
+$activeDepartments = $deptStmt->fetchAll();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token()) {
         $errors[] = 'Security token expired or invalid. Please try again.';
     } else {
         $subject = trim($_POST['subject'] ?? '');
+        $departmentId = !empty($_POST['department_id']) ? (int)$_POST['department_id'] : null;
         $priority = trim($_POST['priority'] ?? PRIORITY_MEDIUM);
         $description = trim($_POST['description'] ?? '');
 
@@ -25,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ticketUserId = (int)$user['id'];
         if ($user['role'] === ROLE_ADMIN && !empty($_POST['customer_id'])) {
             $selectedCustId = (int)$_POST['customer_id'];
-            $custCheckStmt = $db->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $custCheckStmt = $db->prepare("SELECT id FROM users WHERE id = ? AND role = 'customer' LIMIT 1");
             $custCheckStmt->execute([$selectedCustId]);
             if ($custCheckStmt->fetch()) {
                 $ticketUserId = $selectedCustId;
@@ -37,6 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Please provide a subject for your ticket.';
         } elseif (mb_strlen($subject) < 3 || mb_strlen($subject) > 255) {
             $errors[] = 'Ticket subject must be between 3 and 255 characters.';
+        }
+
+        // Department validation
+        if ($departmentId !== null) {
+            $deptCheck = $db->prepare("SELECT id FROM departments WHERE id = ? AND status = 'active' LIMIT 1");
+            $deptCheck->execute([$departmentId]);
+            if (!$deptCheck->fetch()) {
+                $errors[] = 'The selected department is invalid or currently inactive.';
+            }
         }
 
         if (!in_array($priority, VALID_PRIORITIES, true)) {
@@ -81,12 +95,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Insert placeholder record
                 $tempNumber = 'TMP-' . bin2hex(random_bytes(6));
                 $insertTicketStmt = $db->prepare("
-                    INSERT INTO tickets (ticket_number, user_id, subject, description, priority, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                    INSERT INTO tickets (ticket_number, user_id, department_id, subject, description, priority, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
                 ");
                 $insertTicketStmt->execute([
                     $tempNumber,
                     $ticketUserId,
+                    $departmentId,
                     $subject,
                     $description,
                     $priority,
@@ -159,9 +174,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!empty($errors)) {
             set_old_input([
-                'subject'     => $subject,
-                'priority'    => $priority,
-                'description' => $description
+                'subject'       => $subject,
+                'department_id' => $departmentId,
+                'priority'      => $priority,
+                'description'   => $description
             ]);
         }
     }
@@ -238,15 +254,30 @@ include __DIR__ . '/../../includes/header.php';
                            autofocus>
                 </div>
 
-                <!-- Priority -->
-                <div class="mb-3">
-                    <label for="priority" class="form-label">Priority Level <span class="text-danger">*</span></label>
-                    <select name="priority" id="priority" class="form-select" style="max-width: 250px;">
-                        <option value="low" <?= (old('priority') === 'low') ? 'selected' : ''; ?>>Low</option>
-                        <option value="medium" <?= (old('priority', 'medium') === 'medium') ? 'selected' : ''; ?>>Medium (Standard)</option>
-                        <option value="high" <?= (old('priority') === 'high') ? 'selected' : ''; ?>>High</option>
-                        <option value="urgent" <?= (old('priority') === 'urgent') ? 'selected' : ''; ?>>Urgent</option>
-                    </select>
+                <div class="row">
+                    <!-- Department -->
+                    <div class="col-md-6 mb-3">
+                        <label for="department_id" class="form-label">Support Department</label>
+                        <select name="department_id" id="department_id" class="form-select">
+                            <option value="">-- General Support / None --</option>
+                            <?php foreach ($activeDepartments as $dept): ?>
+                                <option value="<?= $dept['id']; ?>" <?= (old('department_id') == $dept['id']) ? 'selected' : ''; ?>>
+                                    <?= e($dept['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Priority -->
+                    <div class="col-md-6 mb-3">
+                        <label for="priority" class="form-label">Priority Level <span class="text-danger">*</span></label>
+                        <select name="priority" id="priority" class="form-select">
+                            <option value="low" <?= (old('priority') === 'low') ? 'selected' : ''; ?>>Low</option>
+                            <option value="medium" <?= (old('priority', 'medium') === 'medium') ? 'selected' : ''; ?>>Medium (Standard)</option>
+                            <option value="high" <?= (old('priority') === 'high') ? 'selected' : ''; ?>>High</option>
+                            <option value="urgent" <?= (old('priority') === 'urgent') ? 'selected' : ''; ?>>Urgent</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Description -->

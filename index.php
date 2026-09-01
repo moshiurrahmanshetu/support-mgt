@@ -1,6 +1,6 @@
 <?php
 /**
- * Main Application Dashboard - Phase 02 Real Ticket Analytics
+ * Main Application Dashboard - Phase 03 Multi-Module Analytics
  */
 
 require_once __DIR__ . '/includes/functions.php';
@@ -13,9 +13,20 @@ $user = current_user();
 $db = get_db();
 
 // ----------------------------------------------------
-// Real Ticket Analytics Queries
+// Real Dashboard Analytics Queries
 // ----------------------------------------------------
-$stats = [
+$adminStats = [
+    'total_customers'   => 0,
+    'active_customers'  => 0,
+    'total_agents'      => 0,
+    'active_agents'     => 0,
+    'total_departments' => 0,
+    'active_departments'=> 0,
+    'total_tickets'     => 0,
+    'open_tickets'      => 0
+];
+
+$ticketStats = [
     'total'       => 0,
     'open'        => 0,
     'in_progress' => 0,
@@ -25,7 +36,21 @@ $stats = [
 ];
 
 if ($user['role'] === ROLE_ADMIN) {
-    // Admin: Global stats across all tickets
+    // Admin Module Overview
+    $adminOverviewStmt = $db->query("
+        SELECT
+            (SELECT COUNT(*) FROM users WHERE role = 'customer') AS total_customers,
+            (SELECT COUNT(*) FROM users WHERE role = 'customer' AND status = 'active') AS active_customers,
+            (SELECT COUNT(*) FROM users WHERE role = 'agent') AS total_agents,
+            (SELECT COUNT(*) FROM users WHERE role = 'agent' AND status = 'active') AS active_agents,
+            (SELECT COUNT(*) FROM departments) AS total_departments,
+            (SELECT COUNT(*) FROM departments WHERE status = 'active') AS active_departments,
+            (SELECT COUNT(*) FROM tickets) AS total_tickets,
+            (SELECT COUNT(*) FROM tickets WHERE status IN ('open', 'in_progress', 'pending')) AS open_tickets
+    ");
+    $adminStats = $adminOverviewStmt->fetch() ?: $adminStats;
+
+    // Detailed Ticket Breakdown
     $statStmt = $db->query("
         SELECT 
             COUNT(*) AS total,
@@ -38,19 +63,20 @@ if ($user['role'] === ROLE_ADMIN) {
     ");
     $row = $statStmt->fetch();
     if ($row) {
-        $stats['total']       = (int)($row['total'] ?? 0);
-        $stats['open']        = (int)($row['open_count'] ?? 0);
-        $stats['in_progress'] = (int)($row['in_progress_count'] ?? 0);
-        $stats['pending']     = (int)($row['pending_count'] ?? 0);
-        $stats['resolved']    = (int)($row['resolved_count'] ?? 0);
-        $stats['closed']      = (int)($row['closed_count'] ?? 0);
+        $ticketStats['total']       = (int)($row['total'] ?? 0);
+        $ticketStats['open']        = (int)($row['open_count'] ?? 0);
+        $ticketStats['in_progress'] = (int)($row['in_progress_count'] ?? 0);
+        $ticketStats['pending']     = (int)($row['pending_count'] ?? 0);
+        $ticketStats['resolved']    = (int)($row['resolved_count'] ?? 0);
+        $ticketStats['closed']      = (int)($row['closed_count'] ?? 0);
     }
 
     // Recent Tickets (Global)
     $recentStmt = $db->query("
-        SELECT t.*, u.name AS customer_name, a.name AS agent_name
+        SELECT t.*, u.name AS customer_name, d.name AS department_name, a.name AS agent_name
         FROM tickets t
         JOIN users u ON t.user_id = u.id
+        LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN users a ON t.assigned_to = a.id
         ORDER BY t.created_at DESC
         LIMIT 6
@@ -73,19 +99,20 @@ if ($user['role'] === ROLE_ADMIN) {
     $statStmt->execute([$user['id']]);
     $row = $statStmt->fetch();
     if ($row) {
-        $stats['total']       = (int)($row['total'] ?? 0);
-        $stats['open']        = (int)($row['open_count'] ?? 0);
-        $stats['in_progress'] = (int)($row['in_progress_count'] ?? 0);
-        $stats['pending']     = (int)($row['pending_count'] ?? 0);
-        $stats['resolved']    = (int)($row['resolved_count'] ?? 0);
-        $stats['closed']      = (int)($row['closed_count'] ?? 0);
+        $ticketStats['total']       = (int)($row['total'] ?? 0);
+        $ticketStats['open']        = (int)($row['open_count'] ?? 0);
+        $ticketStats['in_progress'] = (int)($row['in_progress_count'] ?? 0);
+        $ticketStats['pending']     = (int)($row['pending_count'] ?? 0);
+        $ticketStats['resolved']    = (int)($row['resolved_count'] ?? 0);
+        $ticketStats['closed']      = (int)($row['closed_count'] ?? 0);
     }
 
     // Recent Assigned Tickets
     $recentStmt = $db->prepare("
-        SELECT t.*, u.name AS customer_name, a.name AS agent_name
+        SELECT t.*, u.name AS customer_name, d.name AS department_name, a.name AS agent_name
         FROM tickets t
         JOIN users u ON t.user_id = u.id
+        LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN users a ON t.assigned_to = a.id
         WHERE t.assigned_to = ?
         ORDER BY t.created_at DESC
@@ -110,19 +137,20 @@ if ($user['role'] === ROLE_ADMIN) {
     $statStmt->execute([$user['id']]);
     $row = $statStmt->fetch();
     if ($row) {
-        $stats['total']       = (int)($row['total'] ?? 0);
-        $stats['open']        = (int)($row['open_count'] ?? 0);
-        $stats['in_progress'] = (int)($row['in_progress_count'] ?? 0);
-        $stats['pending']     = (int)($row['pending_count'] ?? 0);
-        $stats['resolved']    = (int)($row['resolved_count'] ?? 0);
-        $stats['closed']      = (int)($row['closed_count'] ?? 0);
+        $ticketStats['total']       = (int)($row['total'] ?? 0);
+        $ticketStats['open']        = (int)($row['open_count'] ?? 0);
+        $ticketStats['in_progress'] = (int)($row['in_progress_count'] ?? 0);
+        $ticketStats['pending']     = (int)($row['pending_count'] ?? 0);
+        $ticketStats['resolved']    = (int)($row['resolved_count'] ?? 0);
+        $ticketStats['closed']      = (int)($row['closed_count'] ?? 0);
     }
 
     // Recent Customer Tickets
     $recentStmt = $db->prepare("
-        SELECT t.*, u.name AS customer_name, a.name AS agent_name
+        SELECT t.*, u.name AS customer_name, d.name AS department_name, a.name AS agent_name
         FROM tickets t
         JOIN users u ON t.user_id = u.id
+        LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN users a ON t.assigned_to = a.id
         WHERE t.user_id = ?
         ORDER BY t.created_at DESC
@@ -177,9 +205,86 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
 
-    <!-- Live Statistics Metric Cards -->
+    <!-- Admin Master Metrics (Admin Only) -->
+    <?php if ($user['role'] === ROLE_ADMIN): ?>
+        <div class="row g-3 mb-4">
+            <!-- Customers -->
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Customers</span>
+                            <div class="p-2 rounded bg-light text-primary">
+                                <i class="bi bi-people fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_customers']; ?></div>
+                        <span class="text-muted fs-8">
+                            <span class="text-success fw-medium"><?= (int)$adminStats['active_customers']; ?> Active</span> accounts
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agents -->
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Support Agents</span>
+                            <div class="p-2 rounded bg-light text-info">
+                                <i class="bi bi-headset fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_agents']; ?></div>
+                        <span class="text-muted fs-8">
+                            <span class="text-success fw-medium"><?= (int)$adminStats['active_agents']; ?> Active</span> staff
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Departments -->
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Departments</span>
+                            <div class="p-2 rounded bg-light text-warning">
+                                <i class="bi bi-building fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_departments']; ?></div>
+                        <span class="text-muted fs-8">
+                            <span class="text-success fw-medium"><?= (int)$adminStats['active_departments']; ?> Active</span> teams
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Tickets -->
+            <div class="col-6 col-md-3">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Support Tickets</span>
+                            <div class="p-2 rounded bg-light text-primary">
+                                <i class="bi bi-ticket-perforated fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_tickets']; ?></div>
+                        <span class="text-muted fs-8">
+                            <span class="text-primary fw-medium"><?= (int)$adminStats['open_tickets']; ?> Unresolved</span> tickets
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <!-- Live Ticket Breakdown Status Cards -->
     <div class="row g-3 mb-4">
-        <!-- Total Tickets -->
+        <!-- Total -->
         <div class="col-6 col-lg-2 col-md-4">
             <div class="card h-100 border shadow-sm">
                 <div class="card-body p-3">
@@ -187,13 +292,13 @@ include __DIR__ . '/includes/header.php';
                         <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Total</span>
                         <i class="bi bi-ticket-perforated text-primary fs-5"></i>
                     </div>
-                    <div class="h3 fw-bold mb-0 text-dark"><?= $stats['total']; ?></div>
-                    <span class="text-muted fs-8">Total inquiries</span>
+                    <div class="h3 fw-bold mb-0 text-dark"><?= $ticketStats['total']; ?></div>
+                    <span class="text-muted fs-8">All inquiries</span>
                 </div>
             </div>
         </div>
 
-        <!-- Open Tickets -->
+        <!-- Open -->
         <div class="col-6 col-lg-2 col-md-4">
             <div class="card h-100 border shadow-sm">
                 <div class="card-body p-3">
@@ -201,8 +306,8 @@ include __DIR__ . '/includes/header.php';
                         <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Open</span>
                         <i class="bi bi-record-circle text-primary fs-5"></i>
                     </div>
-                    <div class="h3 fw-bold mb-0 text-primary"><?= $stats['open']; ?></div>
-                    <span class="text-muted fs-8">Awaiting response</span>
+                    <div class="h3 fw-bold mb-0 text-primary"><?= $ticketStats['open']; ?></div>
+                    <span class="text-muted fs-8">Awaiting review</span>
                 </div>
             </div>
         </div>
@@ -215,8 +320,8 @@ include __DIR__ . '/includes/header.php';
                         <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">In Progress</span>
                         <i class="bi bi-arrow-repeat text-info fs-5"></i>
                     </div>
-                    <div class="h3 fw-bold mb-0" style="color: #0891b2;"><?= $stats['in_progress']; ?></div>
-                    <span class="text-muted fs-8">Being investigated</span>
+                    <div class="h3 fw-bold mb-0" style="color: #0891b2;"><?= $ticketStats['in_progress']; ?></div>
+                    <span class="text-muted fs-8">Active investigation</span>
                 </div>
             </div>
         </div>
@@ -229,8 +334,8 @@ include __DIR__ . '/includes/header.php';
                         <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Pending</span>
                         <i class="bi bi-hourglass-split text-warning fs-5"></i>
                     </div>
-                    <div class="h3 fw-bold mb-0" style="color: #d97706;"><?= $stats['pending']; ?></div>
-                    <span class="text-muted fs-8">Awaiting info</span>
+                    <div class="h3 fw-bold mb-0" style="color: #d97706;"><?= $ticketStats['pending']; ?></div>
+                    <span class="text-muted fs-8">Waiting on user</span>
                 </div>
             </div>
         </div>
@@ -243,8 +348,8 @@ include __DIR__ . '/includes/header.php';
                         <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Resolved</span>
                         <i class="bi bi-check2-circle text-success fs-5"></i>
                     </div>
-                    <div class="h3 fw-bold mb-0 text-success"><?= $stats['resolved']; ?></div>
-                    <span class="text-muted fs-8">Marked solved</span>
+                    <div class="h3 fw-bold mb-0 text-success"><?= $ticketStats['resolved']; ?></div>
+                    <span class="text-muted fs-8">Issue solved</span>
                 </div>
             </div>
         </div>
@@ -257,7 +362,7 @@ include __DIR__ . '/includes/header.php';
                         <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Closed</span>
                         <i class="bi bi-lock text-secondary fs-5"></i>
                     </div>
-                    <div class="h3 fw-bold mb-0 text-secondary"><?= $stats['closed']; ?></div>
+                    <div class="h3 fw-bold mb-0 text-secondary"><?= $ticketStats['closed']; ?></div>
                     <span class="text-muted fs-8">Archived</span>
                 </div>
             </div>
@@ -284,6 +389,7 @@ include __DIR__ . '/includes/header.php';
                                 <tr class="text-secondary-custom fs-7 border-bottom">
                                     <th class="ps-3 py-2">Ticket #</th>
                                     <th class="py-2">Subject</th>
+                                    <th class="py-2">Department</th>
                                     <th class="py-2">Priority</th>
                                     <th class="py-2">Status</th>
                                     <th class="pe-3 py-2 text-end">Action</th>
@@ -299,12 +405,15 @@ include __DIR__ . '/includes/header.php';
                                                 </a>
                                             </td>
                                             <td>
-                                                <div class="fw-semibold text-dark text-truncate" style="max-width: 280px;">
+                                                <div class="fw-semibold text-dark text-truncate" style="max-width: 260px;">
                                                     <?= e($rTicket['subject']); ?>
                                                 </div>
                                                 <div class="text-muted fs-8">
                                                     <?= e(format_datetime($rTicket['created_at'])); ?>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <?= !empty($rTicket['department_name']) ? '<span class="badge bg-light text-dark border">' . e($rTicket['department_name']) . '</span>' : '<span class="text-muted small fst-italic">General</span>'; ?>
                                             </td>
                                             <td><?= render_priority_badge($rTicket['priority']); ?></td>
                                             <td><?= render_status_badge($rTicket['status']); ?></td>
@@ -317,7 +426,7 @@ include __DIR__ . '/includes/header.php';
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted">
+                                        <td colspan="6" class="text-center py-4 text-muted">
                                             <i class="bi bi-inbox fs-3 d-block mb-1 text-secondary"></i>
                                             <span class="small">No recent support tickets found.</span>
                                         </td>
@@ -335,32 +444,60 @@ include __DIR__ . '/includes/header.php';
             <div class="card border shadow-sm h-100">
                 <div class="card-header bg-white">
                     <h5 class="card-title h6 mb-0 fw-bold">
-                        <i class="bi bi-lightning-charge me-2 text-primary"></i>Quick Actions
+                        <i class="bi bi-lightning-charge me-2 text-primary"></i>Management Shortcuts
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="list-group list-group-flush">
+                        <?php if ($user['role'] === ROLE_ADMIN): ?>
+                            <a href="<?= url('modules/customers/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="p-2 rounded bg-light text-primary">
+                                        <i class="bi bi-people fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">Customer Accounts</div>
+                                        <div class="small text-muted">Manage registered customers and view tickets</div>
+                                    </div>
+                                </div>
+                                <i class="bi bi-chevron-right text-muted"></i>
+                            </a>
+
+                            <a href="<?= url('modules/agents/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="p-2 rounded bg-light text-info">
+                                        <i class="bi bi-headset fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">Support Agents</div>
+                                        <div class="small text-muted">Manage agents and department assignments</div>
+                                    </div>
+                                </div>
+                                <i class="bi bi-chevron-right text-muted"></i>
+                            </a>
+
+                            <a href="<?= url('modules/departments/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="p-2 rounded bg-light text-warning">
+                                        <i class="bi bi-building fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">Support Departments</div>
+                                        <div class="small text-muted">Configure teams and inquiry categories</div>
+                                    </div>
+                                </div>
+                                <i class="bi bi-chevron-right text-muted"></i>
+                            </a>
+                        <?php endif; ?>
+
                         <a href="<?= url('modules/tickets/create.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
                             <div class="d-flex align-items-center gap-3">
-                                <div class="p-2 rounded bg-light text-primary">
+                                <div class="p-2 rounded bg-light text-success">
                                     <i class="bi bi-plus-circle fs-5"></i>
                                 </div>
                                 <div>
                                     <div class="fw-semibold text-dark">Submit New Ticket</div>
                                     <div class="small text-muted">Create a support inquiry with attachments</div>
-                                </div>
-                            </div>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </a>
-
-                        <a href="<?= url('modules/tickets/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="p-2 rounded bg-light text-secondary">
-                                    <i class="bi bi-ticket-perforated fs-5"></i>
-                                </div>
-                                <div>
-                                    <div class="fw-semibold text-dark">Browse All Tickets</div>
-                                    <div class="small text-muted">Filter by status, priority, and search</div>
                                 </div>
                             </div>
                             <i class="bi bi-chevron-right text-muted"></i>
@@ -372,7 +509,7 @@ include __DIR__ . '/includes/header.php';
                                     <i class="bi bi-person-circle fs-5"></i>
                                 </div>
                                 <div>
-                                    <div class="fw-semibold text-dark">Manage Profile</div>
+                                    <div class="fw-semibold text-dark">My Profile</div>
                                     <div class="small text-muted">Update details, photo, and password</div>
                                 </div>
                             </div>

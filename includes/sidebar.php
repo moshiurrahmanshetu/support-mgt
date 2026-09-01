@@ -1,6 +1,6 @@
 <?php
 /**
- * Master Sidebar Include (Collapsible & Role-Aware)
+ * Master Sidebar Include (Collapsible & Role-Aware - Phase 03)
  */
 
 require_once __DIR__ . '/functions.php';
@@ -35,7 +35,7 @@ function is_nav_active(string $target, string $currentScript, string $activePage
         <!-- Dashboard Link -->
         <li class="nav-item">
             <a href="<?= url('index.php'); ?>" 
-               class="nav-link-custom <?= (is_nav_active('index.php', $currentScript, $activePage) && !is_nav_active('profile', $currentScript, $activePage) && !is_nav_active('tickets', $currentScript, $activePage)) ? 'active' : ''; ?>" 
+               class="nav-link-custom <?= (is_nav_active('index.php', $currentScript, $activePage) && !is_nav_active('profile', $currentScript, $activePage) && !is_nav_active('tickets', $currentScript, $activePage) && !is_nav_active('customers', $currentScript, $activePage) && !is_nav_active('agents', $currentScript, $activePage) && !is_nav_active('departments', $currentScript, $activePage)) ? 'active' : ''; ?>" 
                data-bs-toggle="tooltip" 
                data-bs-placement="right" 
                title="Dashboard">
@@ -72,15 +72,58 @@ function is_nav_active(string $target, string $currentScript, string $activePage
                 </a>
             </li>
         <?php else: ?>
-            <!-- Admin / Agent Links -->
+            <!-- Admin / Agent Support Links -->
             <li class="nav-item">
                 <a href="<?= url('modules/tickets/index.php'); ?>" 
                    class="nav-link-custom <?= is_nav_active('tickets', $currentScript, $activePage) ? 'active' : ''; ?>" 
                    data-bs-toggle="tooltip" 
                    data-bs-placement="right" 
-                   title="Tickets">
+                   title="Support Tickets">
                     <i class="bi bi-ticket-perforated"></i>
                     <span class="nav-text">Support Tickets</span>
+                </a>
+            </li>
+        <?php endif; ?>
+
+        <?php if ($user && $user['role'] === ROLE_ADMIN): ?>
+            <!-- Admin Management Section -->
+            <li class="nav-header">
+                <span class="nav-header-text">Administration</span>
+            </li>
+
+            <!-- Customers -->
+            <li class="nav-item">
+                <a href="<?= url('modules/customers/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('customers', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Customers">
+                    <i class="bi bi-people"></i>
+                    <span class="nav-text">Customers</span>
+                </a>
+            </li>
+
+            <!-- Agents -->
+            <li class="nav-item">
+                <a href="<?= url('modules/agents/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('agents', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Support Agents">
+                    <i class="bi bi-headset"></i>
+                    <span class="nav-text">Support Agents</span>
+                </a>
+            </li>
+
+            <!-- Departments -->
+            <li class="nav-item">
+                <a href="<?= url('modules/departments/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('departments', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Departments">
+                    <i class="bi bi-building"></i>
+                    <span class="nav-text">Departments</span>
                 </a>
             </li>
         <?php endif; ?>

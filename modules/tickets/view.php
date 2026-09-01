@@ -1,6 +1,6 @@
 <?php
 /**
- * Ticket Management - View Ticket Details & Conversation
+ * Ticket Management - View Ticket Details & Conversation (Integrated with Departments)
  */
 
 require_once __DIR__ . '/../../includes/functions.php';
@@ -19,10 +19,12 @@ if ($ticketId <= 0) {
 
 $db = get_db();
 
-// 1. Fetch Ticket with Customer & Assigned Agent Details
+// 1. Fetch Ticket with Customer, Department & Assigned Agent Details
 $ticketStmt = $db->prepare("
     SELECT 
         t.*,
+        d.name AS department_name,
+        d.status AS department_status,
         u.name AS customer_name,
         u.email AS customer_email,
         u.phone AS customer_phone,
@@ -32,6 +34,7 @@ $ticketStmt = $db->prepare("
         a.email AS agent_email
     FROM tickets t
     JOIN users u ON t.user_id = u.id
+    LEFT JOIN departments d ON t.department_id = d.id
     LEFT JOIN users a ON t.assigned_to = a.id
     WHERE t.id = ?
     LIMIT 1
@@ -89,11 +92,33 @@ foreach ($allAttachments as $att) {
     $attachmentsByMessage[$msgKey][] = $att;
 }
 
-// Fetch active agents for assignment (Admin only)
+// 5. Fetch active agents for assignment (Admin only, filtered by department if assigned)
 $agents = [];
 if ($user['role'] === ROLE_ADMIN) {
-    $agentsStmt = $db->query("SELECT id, name, email FROM users WHERE role = 'agent' AND status = 'active' ORDER BY name ASC");
-    $agents = $agentsStmt->fetchAll();
+    if (!empty($ticket['department_id'])) {
+        // Prefer agents in the ticket's department
+        $agentsStmt = $db->prepare("
+            SELECT u.id, u.name, u.email, d.name AS department_name
+            FROM users u
+            LEFT JOIN departments d ON u.department_id = d.id
+            WHERE u.role = 'agent' AND u.status = 'active' AND (u.department_id = ? OR u.id = ?)
+            ORDER BY u.name ASC
+        ");
+        $agentsStmt->execute([$ticket['department_id'], (int)($ticket['assigned_to'] ?? 0)]);
+        $agents = $agentsStmt->fetchAll();
+    }
+    
+    // If no agents found for this department, load all active agents as fallback
+    if (empty($agents)) {
+        $agentsStmt = $db->query("
+            SELECT u.id, u.name, u.email, d.name AS department_name
+            FROM users u
+            LEFT JOIN departments d ON u.department_id = d.id
+            WHERE u.role = 'agent' AND u.status = 'active'
+            ORDER BY u.name ASC
+        ");
+        $agents = $agentsStmt->fetchAll();
+    }
 }
 
 $pageTitle = 'Ticket #' . $ticket['ticket_number'];
@@ -120,6 +145,11 @@ include __DIR__ . '/../../includes/header.php';
                         <span class="fs-5 fw-bold text-primary font-monospace"><?= e($ticket['ticket_number']); ?></span>
                         <?= render_status_badge($ticket['status']); ?>
                         <?= render_priority_badge($ticket['priority']); ?>
+                        <?php if (!empty($ticket['department_name'])): ?>
+                            <span class="badge bg-light text-dark border">
+                                <i class="bi bi-building me-1 text-secondary"></i><?= e($ticket['department_name']); ?>
+                            </span>
+                        <?php endif; ?>
                     </div>
                     <h1 class="h4 fw-bold mb-2"><?= e($ticket['subject']); ?></h1>
                     <div class="text-secondary-custom small d-flex flex-wrap align-items-center gap-3">
@@ -299,6 +329,16 @@ include __DIR__ . '/../../includes/header.php';
                                 <td><?= render_priority_badge($ticket['priority']); ?></td>
                             </tr>
                             <tr>
+                                <td class="text-muted">Department:</td>
+                                <td>
+                                    <?php if (!empty($ticket['department_name'])): ?>
+                                        <span class="badge bg-light text-dark border"><i class="bi bi-building me-1 text-secondary"></i><?= e($ticket['department_name']); ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted small fst-italic">General Support</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <tr>
                                 <td class="text-muted">Assigned To:</td>
                                 <td class="fw-semibold">
                                     <?php if (!empty($ticket['agent_name'])): ?>
@@ -403,15 +443,21 @@ include __DIR__ . '/../../includes/header.php';
                                         <?php if (!empty($agents)): ?>
                                             <?php foreach ($agents as $agent): ?>
                                                 <option value="<?= $agent['id']; ?>" <?= ($ticket['assigned_to'] == $agent['id']) ? 'selected' : ''; ?>>
-                                                    <?= e($agent['name']); ?> (<?= e($agent['email']); ?>)
+                                                    <?= e($agent['name']); ?> 
+                                                    <?= !empty($agent['department_name']) ? '[' . e($agent['department_name']) . ']' : ''; ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
                                     </select>
+                                    <?php if (!empty($ticket['department_name'])): ?>
+                                        <div class="form-text fs-8 text-muted">
+                                            Showing active agents associated with <?= e($ticket['department_name']); ?>.
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
 
                                 <button type="submit" class="btn btn-sm btn-primary w-100">
-                                    <i class="bi bi-check2"></i> Assign Agent
+                                    <i class="bi bi-check2"></i> Save Assignment
                                 </button>
                             </form>
                         </div>

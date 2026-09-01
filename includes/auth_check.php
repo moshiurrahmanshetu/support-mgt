@@ -28,7 +28,7 @@ function current_user(): ?array {
  */
 function refresh_user_session(int $userId): bool {
     $db = get_db();
-    $stmt = $db->prepare("SELECT id, role, name, email, phone, avatar, status, email_verified_at, last_login_at, created_at, updated_at FROM users WHERE id = ? AND status = 'active' LIMIT 1");
+    $stmt = $db->prepare("SELECT id, role, name, email, phone, avatar, department_id, status, email_verified_at, last_login_at, created_at, updated_at FROM users WHERE id = ? AND status = 'active' LIMIT 1");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
 
@@ -95,4 +95,30 @@ function require_role($roles): void {
         flash('danger', 'You do not have permission to access that resource.');
         redirect('index.php');
     }
+}
+
+/**
+ * Admin Safety Guard: Verify if a user can safely be deactivated
+ * Prevents deactivating the last active administrator.
+ */
+function can_deactivate_user(int $userId): bool {
+    $db = get_db();
+    $stmt = $db->prepare("SELECT role, status FROM users WHERE id = ? LIMIT 1");
+    $stmt->execute([$userId]);
+    $target = $stmt->fetch();
+
+    if (!$target) {
+        return false;
+    }
+
+    if ($target['role'] === ROLE_ADMIN && $target['status'] === STATUS_ACTIVE) {
+        $countStmt = $db->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 'active'");
+        $activeAdminCount = (int)$countStmt->fetchColumn();
+
+        if ($activeAdminCount <= 1) {
+            return false; // Cannot deactivate the only active admin
+        }
+    }
+
+    return true;
 }
