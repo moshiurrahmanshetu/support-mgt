@@ -10,7 +10,7 @@ require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/settings.php';
 require_once __DIR__ . '/../../includes/knowledge_base.php';
 
-$kbEnabled = (get_setting('knowledge_base_enabled', '1') === '1');
+$kbEnabled = (bool)get_setting('knowledge_base_enabled', true);
 if (!$kbEnabled) {
     echo json_encode(['suggestions' => []]);
     exit;

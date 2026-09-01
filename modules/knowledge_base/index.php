@@ -9,8 +9,8 @@ require_once __DIR__ . '/../../includes/settings.php';
 require_once __DIR__ . '/../../includes/knowledge_base.php';
 
 // Check if Knowledge Base is globally enabled
-$kbEnabled = (get_setting('knowledge_base_enabled', '1') === '1');
-$faqEnabled = (get_setting('faq_enabled', '1') === '1');
+$kbEnabled = (bool)get_setting('knowledge_base_enabled', true);
+$faqEnabled = (bool)get_setting('faq_enabled', true);
 
 $currentUser = current_user();
 $categories = get_active_categories_with_counts();

@@ -85,10 +85,10 @@ $faqCount = (int)$db->query("SELECT COUNT(*) FROM faqs")->fetchColumn();
 assert_test("Default FAQs seeded (found: {$faqCount})", $faqCount >= 4);
 
 $kbSetting = get_setting('knowledge_base_enabled');
-assert_test("knowledge_base_enabled setting exists and is enabled", $kbSetting === '1');
+assert_test("knowledge_base_enabled setting exists and is enabled (boolean true)", $kbSetting === true || $kbSetting === '1');
 
 $faqSetting = get_setting('faq_enabled');
-assert_test("faq_enabled setting exists and is enabled", $faqSetting === '1');
+assert_test("faq_enabled setting exists and is enabled (boolean true)", $faqSetting === true || $faqSetting === '1');
 
 // ----------------------------------------------------
 // SECTION 3: CATEGORY SLUGS & CRUD SAFETY
