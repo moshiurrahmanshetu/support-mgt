@@ -247,7 +247,7 @@ include __DIR__ . '/includes/header.php';
                         </a>
                     <?php endif; ?>
                     <?php if ($user['role'] === ROLE_ADMIN): ?>
-                        <a href="<?= url('modules/reports/index.php'); ?>" class="btn btn-outline-primary btn-sm">
+                        <a href="<?= url('modules/reports/index.php'); ?>" class="btn btn-success btn-sm">
                             <i class="bi bi-graph-up"></i> Reports & Analytics
                         </a>
                     <?php endif; ?>

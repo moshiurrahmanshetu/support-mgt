@@ -448,7 +448,7 @@ h1, h2, h3, h4, h5, h6 {
     height: var(--topbar-height);
     display: flex;
     align-items: center;
-    padding: 0 1.25rem;
+    padding: 1.25rem;
     border-bottom: 1px solid #1e293b;
     color: #ffffff;
     font-weight: 700;
