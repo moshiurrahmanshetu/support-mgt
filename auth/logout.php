@@ -4,6 +4,13 @@
  */
 
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/activity_log.php';
+
+$userId = $_SESSION['user_id'] ?? null;
+$userName = $_SESSION['user']['name'] ?? 'User';
+if ($userId) {
+    log_activity((int)$userId, 'auth', 'logout', "User {$userName} logged out");
+}
 
 // Unset all session variables
 $_SESSION = [];

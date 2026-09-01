@@ -55,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ");
             $updateStmt->execute([$title, $content, $id]);
 
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            log_activity($user['id'], 'canned_response', 'canned_response_updated', "Updated canned response: {$title} (ID: {$id})", 'canned_response', $id);
+
             flash('success', "Template <strong>" . e($title) . "</strong> updated successfully!");
             redirect('modules/canned_responses/index.php');
         }

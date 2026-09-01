@@ -79,6 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $id
             ]);
 
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            $user = current_user();
+            log_activity($user['id'], 'agent', 'agent_updated', "Updated support agent {$name} (ID: {$id})", 'user', $id);
+
             flash('success', "Agent <strong>" . e($name) . "</strong> updated successfully!");
             redirect('modules/agents/view.php?id=' . $id);
         }

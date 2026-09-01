@@ -94,9 +94,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $departmentId,
                 $status
             ]);
+            $newAgentId = (int)$db->lastInsertId();
+
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            $currentUser = current_user();
+            log_activity($currentUser['id'], 'agent', 'agent_created', "Created new support agent account: {$name} ({$email})", 'user', $newAgentId);
 
             clear_old_input();
-            flash('success', "Agent account <strong>" . e($name) . "</strong> has been created successfully!");
+            flash('success', "Support Agent <strong>" . e($name) . "</strong> has been created successfully!");
             redirect('modules/agents/index.php');
         }
 

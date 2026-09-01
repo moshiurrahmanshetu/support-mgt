@@ -38,10 +38,15 @@ if (!$customer) {
     redirect('modules/customers/index.php');
 }
 
+require_once __DIR__ . '/../../includes/activity_log.php';
+
 // Update status
 $updateStmt = $db->prepare("UPDATE users SET status = ?, updated_at = NOW() WHERE id = ?");
 $updateStmt->execute([$status, $id]);
 
 $label = ($status === STATUS_ACTIVE) ? 'activated' : 'deactivated';
+$user = current_user();
+log_activity($user['id'], 'customer', 'customer_status_changed', "Customer {$customer['name']} was {$label}", 'user', $id);
+
 flash('success', "Customer <strong>" . e($customer['name']) . "</strong> has been {$label}.");
 redirect($_SERVER['HTTP_REFERER'] ?? 'modules/customers/index.php');

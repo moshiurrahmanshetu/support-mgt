@@ -199,3 +199,37 @@ function format_file_size(int $bytes): string {
     }
     return $bytes . ' bytes';
 }
+
+/**
+ * Calculate safe pagination parameters (Prevents division by zero, invalid page/limit/offset)
+ *
+ * @param int $totalRecords
+ * @param int $defaultPerPage
+ * @param array $allowedPerPage
+ * @return array [ 'page' => int, 'per_page' => int, 'total_pages' => int, 'offset' => int, 'total_records' => int ]
+ */
+function get_pagination_params(int $totalRecords, int $defaultPerPage = 20, array $allowedPerPage = [20, 50, 100]): array {
+    $rawPerPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : $defaultPerPage;
+    $perPage = in_array($rawPerPage, $allowedPerPage, true) ? $rawPerPage : $defaultPerPage;
+    if ($perPage <= 0) {
+        $perPage = $defaultPerPage;
+    }
+
+    $totalPages = max(1, (int)ceil($totalRecords / $perPage));
+
+    $rawPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+    $page = max(1, $rawPage);
+    if ($totalRecords > 0 && $page > $totalPages) {
+        $page = $totalPages;
+    }
+
+    $offset = max(0, ($page - 1) * $perPage);
+
+    return [
+        'page'          => $page,
+        'per_page'      => $perPage,
+        'total_pages'   => $totalPages,
+        'offset'        => $offset,
+        'total_records' => $totalRecords
+    ];
+}

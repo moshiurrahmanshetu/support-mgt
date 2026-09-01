@@ -37,9 +37,14 @@ if (!$tag) {
     redirect('modules/tags/index.php');
 }
 
+require_once __DIR__ . '/../../includes/activity_log.php';
+
 // Delete tag (Foreign key CASCADE removes pivot records only; tickets remain completely intact)
 $delStmt = $db->prepare("DELETE FROM ticket_tags WHERE id = ?");
 $delStmt->execute([$id]);
+
+$user = current_user();
+log_activity($user['id'], 'tag', 'tag_deleted', "Deleted ticket tag: {$tag['name']} (ID: {$id})", 'tag', $id);
 
 flash('success', "Tag <strong>" . e($tag['name']) . "</strong> has been deleted.");
 redirect('modules/tags/index.php');

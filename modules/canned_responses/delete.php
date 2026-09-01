@@ -37,9 +37,14 @@ if (!$template) {
     redirect('modules/canned_responses/index.php');
 }
 
+require_once __DIR__ . '/../../includes/activity_log.php';
+
 // Delete template
 $delStmt = $db->prepare("DELETE FROM canned_responses WHERE id = ?");
 $delStmt->execute([$id]);
+
+$user = current_user();
+log_activity($user['id'], 'canned_response', 'canned_response_deleted', "Deleted canned response: {$template['title']} (ID: {$id})", 'canned_response', $id);
 
 flash('success', "Template <strong>" . e($template['title']) . "</strong> has been deleted.");
 redirect('modules/canned_responses/index.php');

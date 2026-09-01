@@ -1,12 +1,15 @@
 <?php
 /**
- * Ticket Management - Update Ticket Status & Priority Handler (Integrated with Activity Logging)
+ * Ticket Management - Update Ticket Status & Priority Handler (Integrated with Notifications & Logs - Phase 05)
  */
 
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth_check.php';
 require_once __DIR__ . '/../../includes/ticket_activity.php';
+require_once __DIR__ . '/../../includes/notifications.php';
+require_once __DIR__ . '/../../includes/email.php';
+require_once __DIR__ . '/../../includes/activity_log.php';
 
 require_login();
 
@@ -36,7 +39,13 @@ if ($ticketId <= 0) {
 }
 
 $db = get_db();
-$ticketStmt = $db->prepare("SELECT * FROM tickets WHERE id = ? LIMIT 1");
+$ticketStmt = $db->prepare("
+    SELECT t.*, u.name AS customer_name, u.email AS customer_email 
+    FROM tickets t 
+    JOIN users u ON t.user_id = u.id 
+    WHERE t.id = ? 
+    LIMIT 1
+");
 $ticketStmt->execute([$ticketId]);
 $ticket = $ticketStmt->fetch();
 
@@ -87,16 +96,49 @@ if ($action === 'update_status') {
             $ticketId
         ]);
 
+        $statusLabel = ucfirst(str_replace('_', ' ', $newStatus));
+        $oldStatusLabel = ucfirst(str_replace('_', ' ', $ticket['status']));
+
+        // Ticket Specific Activity
         log_ticket_activity(
             $ticketId,
             $user['id'],
             'status_changed',
             $ticket['status'],
             $newStatus,
-            "Status changed from " . ucfirst(str_replace('_', ' ', $ticket['status'])) . " to " . ucfirst(str_replace('_', ' ', $newStatus))
+            "Status changed from {$oldStatusLabel} to {$statusLabel}"
         );
 
-        flash('success', 'Ticket status updated to <strong>' . ucfirst(str_replace('_', ' ', $newStatus)) . '</strong>.');
+        // System Activity Log
+        log_activity($user['id'], 'ticket', 'status_changed', "Updated status of ticket #{$ticket['ticket_number']} to {$statusLabel}", 'ticket', $ticketId);
+
+        // In-App Notification for Customer
+        if ((int)$ticket['user_id'] !== (int)$user['id']) {
+            create_notification(
+                (int)$ticket['user_id'],
+                "Ticket Status Updated: #{$ticket['ticket_number']}",
+                "Your ticket status has been updated to {$statusLabel}.",
+                NOTIF_TICKET_STATUS_CHANGED,
+                'ticket',
+                $ticketId
+            );
+
+            // Email Notification for Customer
+            send_email_notification(
+                $ticket['customer_email'],
+                $ticket['customer_name'],
+                'ticket_status',
+                [
+                    'ticket_number'  => $ticket['ticket_number'],
+                    'ticket_subject' => $ticket['subject'],
+                    'ticket_status'  => $statusLabel,
+                    'ticket_url'     => url('modules/tickets/view.php?id=' . $ticketId)
+                ],
+                (int)$ticket['user_id']
+            );
+        }
+
+        flash('success', 'Ticket status updated to <strong>' . $statusLabel . '</strong>.');
     } else {
         flash('info', 'Ticket status is already ' . ucfirst(str_replace('_', ' ', $newStatus)) . '.');
     }
@@ -115,16 +157,21 @@ if ($action === 'update_priority') {
         $updateStmt = $db->prepare("UPDATE tickets SET priority = ?, updated_at = NOW() WHERE id = ?");
         $updateStmt->execute([$newPriority, $ticketId]);
 
+        $prioLabel = ucfirst($newPriority);
+        $oldPrioLabel = ucfirst($ticket['priority']);
+
         log_ticket_activity(
             $ticketId,
             $user['id'],
             'priority_changed',
             $ticket['priority'],
             $newPriority,
-            "Priority changed from " . ucfirst($ticket['priority']) . " to " . ucfirst($newPriority)
+            "Priority changed from {$oldPrioLabel} to {$prioLabel}"
         );
 
-        flash('success', 'Ticket priority updated to <strong>' . ucfirst($newPriority) . '</strong>.');
+        log_activity($user['id'], 'ticket', 'priority_changed', "Updated priority of ticket #{$ticket['ticket_number']} to {$prioLabel}", 'ticket', $ticketId);
+
+        flash('success', 'Ticket priority updated to <strong>' . $prioLabel . '</strong>.');
     } else {
         flash('info', 'Ticket priority is already ' . ucfirst($newPriority) . '.');
     }

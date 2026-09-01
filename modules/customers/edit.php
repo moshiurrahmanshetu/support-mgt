@@ -63,6 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $id
             ]);
 
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            $user = current_user();
+            log_activity($user['id'], 'customer', 'customer_updated', "Updated customer profile for {$name} (ID: {$id})", 'user', $id);
+
             flash('success', "Customer <strong>" . e($name) . "</strong> has been updated successfully!");
             redirect('modules/customers/view.php?id=' . $id);
         }

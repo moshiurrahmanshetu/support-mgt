@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth_check.php';
+require_once __DIR__ . '/includes/notifications.php';
 
 // Protect Dashboard - requires authentication
 require_login();
@@ -194,7 +195,15 @@ include __DIR__ . '/includes/header.php';
                     </div>
                 </div>
 
-                <div class="d-flex flex-wrap gap-2">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <?php 
+                        $dashUnreadCount = get_unread_notifications_count($user['id']);
+                        if ($dashUnreadCount > 0):
+                    ?>
+                        <a href="<?= url('modules/notifications/index.php?filter=unread'); ?>" class="btn btn-warning btn-sm text-dark fw-medium">
+                            <i class="bi bi-bell-fill"></i> <?= $dashUnreadCount; ?> Unread <?= ($dashUnreadCount === 1) ? 'Notification' : 'Notifications'; ?>
+                        </a>
+                    <?php endif; ?>
                     <a href="<?= url('modules/tickets/create.php'); ?>" class="btn btn-primary btn-sm">
                         <i class="bi bi-plus-circle"></i> Create Ticket
                     </a>
@@ -504,19 +513,45 @@ include __DIR__ . '/includes/header.php';
                                 <i class="bi bi-chevron-right text-muted"></i>
                             </a>
 
-                            <a href="<?= url('modules/canned_responses/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
+                            <a href="<?= url('modules/activity_logs/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
                                 <div class="d-flex align-items-center gap-3">
-                                    <div class="p-2 rounded bg-light text-primary">
-                                        <i class="bi bi-chat-square-quote fs-5"></i>
+                                    <div class="p-2 rounded bg-light text-secondary">
+                                        <i class="bi bi-clock-history fs-5"></i>
                                     </div>
                                     <div>
-                                        <div class="fw-semibold text-dark">Canned Responses</div>
-                                        <div class="small text-muted">Manage reusable response templates</div>
+                                        <div class="fw-semibold text-dark">System Activity Logs</div>
+                                        <div class="small text-muted">Audit system actions and auth events</div>
+                                    </div>
+                                </div>
+                                <i class="bi bi-chevron-right text-muted"></i>
+                            </a>
+
+                            <a href="<?= url('modules/settings/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="p-2 rounded bg-light text-dark">
+                                        <i class="bi bi-gear fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">System Settings</div>
+                                        <div class="small text-muted">Configure SMTP, timezones, and rules</div>
                                     </div>
                                 </div>
                                 <i class="bi bi-chevron-right text-muted"></i>
                             </a>
                         <?php endif; ?>
+
+                        <a href="<?= url('modules/notifications/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="p-2 rounded bg-light text-warning">
+                                    <i class="bi bi-bell fs-5"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold text-dark">Notifications</div>
+                                    <div class="small text-muted">View all in-app updates and alerts</div>
+                                </div>
+                            </div>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </a>
 
                         <a href="<?= url('modules/tickets/create.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
                             <div class="d-flex align-items-center gap-3">

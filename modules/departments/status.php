@@ -38,10 +38,15 @@ if (!$dept) {
     redirect('modules/departments/index.php');
 }
 
+require_once __DIR__ . '/../../includes/activity_log.php';
+
 // Update status
 $updateStmt = $db->prepare("UPDATE departments SET status = ?, updated_at = NOW() WHERE id = ?");
 $updateStmt->execute([$status, $id]);
 
 $label = ($status === STATUS_ACTIVE) ? 'activated' : 'deactivated';
+$user = current_user();
+log_activity($user['id'], 'department', 'department_status_changed', "Department {$dept['name']} was {$label}", 'department', $id);
+
 flash('success', "Department <strong>" . e($dept['name']) . "</strong> has been {$label}.");
 redirect('modules/departments/index.php');

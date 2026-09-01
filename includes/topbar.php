@@ -1,12 +1,15 @@
 <?php
 /**
- * Master Topbar Include
+ * Master Topbar Include (with Live Notification Bell - Phase 05)
  */
 
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/auth_check.php';
+require_once __DIR__ . '/notifications.php';
 
 $user = current_user();
+$unreadNotifCount = $user ? get_unread_notifications_count($user['id']) : 0;
+$recentNotifs = $user ? get_recent_notifications($user['id'], 5) : [];
 ?>
 <header class="app-topbar">
     <div class="d-flex align-items-center gap-3">
@@ -20,9 +23,67 @@ $user = current_user();
         </span>
     </div>
 
-    <!-- Right Side Actions & Profile Menu -->
+    <!-- Right Side Actions & Notification Bell + Profile Menu -->
     <div class="d-flex align-items-center gap-3">
         <?php if ($user): ?>
+            <!-- Notification Bell Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-link text-secondary-custom position-relative p-1 text-decoration-none border-0" type="button" id="notifBellDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                    <i class="bi bi-bell fs-5"></i>
+                    <?php if ($unreadNotifCount > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger fs-8">
+                            <?= ($unreadNotifCount > 99) ? '99+' : $unreadNotifCount; ?>
+                            <span class="visually-hidden">unread notifications</span>
+                        </span>
+                    <?php endif; ?>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end shadow-sm border p-0" aria-labelledby="notifBellDropdown" style="width: 320px; max-width: 90vw;">
+                    <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light">
+                        <span class="fw-bold fs-7 text-dark">Notifications</span>
+                        <?php if ($unreadNotifCount > 0): ?>
+                            <form action="<?= url('modules/notifications/mark_all_read.php'); ?>" method="POST" class="m-0">
+                                <?= csrf_field(); ?>
+                                <button type="submit" class="btn btn-link p-0 text-primary small text-decoration-none fs-8">
+                                    Mark all read
+                                </button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="list-group list-group-flush" style="max-height: 280px; overflow-y: auto;">
+                        <?php if (!empty($recentNotifs)): ?>
+                            <?php foreach ($recentNotifs as $rNotif): 
+                                $meta = format_notification_meta($rNotif);
+                                $isUnread = ((int)$rNotif['is_read'] === 0);
+                            ?>
+                                <a href="<?= ($meta['url'] !== '#') ? $meta['url'] : url('modules/notifications/index.php'); ?>" 
+                                   class="list-group-item list-group-item-action d-flex align-items-start gap-2 p-3 <?= $isUnread ? 'bg-light' : ''; ?>">
+                                    <div class="p-1 rounded bg-white border <?= $meta['color_class']; ?> flex-shrink-0 mt-1">
+                                        <i class="bi <?= $meta['icon']; ?> fs-6"></i>
+                                    </div>
+                                    <div class="overflow-hidden flex-grow-1">
+                                        <div class="fw-semibold text-dark fs-8 text-truncate"><?= e($rNotif['title']); ?></div>
+                                        <div class="text-muted fs-8 text-truncate"><?= e($rNotif['message']); ?></div>
+                                        <div class="text-secondary fs-8 mt-1"><?= e(format_datetime($rNotif['created_at'])); ?></div>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="text-center py-4 text-muted small">
+                                <i class="bi bi-bell-slash fs-4 d-block mb-1 text-secondary"></i>
+                                No notifications yet
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="p-2 border-top text-center bg-light">
+                        <a href="<?= url('modules/notifications/index.php'); ?>" class="text-primary small fw-semibold text-decoration-none d-block">
+                            View All Notifications <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             <!-- User Dropdown Menu -->
             <div class="dropdown">
                 <button class="btn btn-link text-decoration-none dropdown-toggle p-0 d-flex align-items-center gap-2 border-0" type="button" id="userMenuDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -43,6 +104,11 @@ $user = current_user();
                     <li>
                         <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="<?= url('modules/profile/index.php'); ?>">
                             <i class="bi bi-person text-secondary"></i> My Profile
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="<?= url('modules/profile/notifications.php'); ?>">
+                            <i class="bi bi-sliders text-secondary"></i> Notification Settings
                         </a>
                     </li>
                     <li>

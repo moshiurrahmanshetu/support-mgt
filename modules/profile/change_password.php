@@ -52,6 +52,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Regenerate session to protect session state
                 session_regenerate_id(true);
 
+                require_once __DIR__ . '/../../includes/activity_log.php';
+                log_activity((int)$user['id'], 'profile', 'password_changed', 'Changed account password');
+
                 flash('success', 'Your password has been changed successfully!');
                 redirect('modules/profile/index.php');
             } else {

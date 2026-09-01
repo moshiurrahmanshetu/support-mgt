@@ -1,12 +1,15 @@
 <?php
 /**
- * Ticket Management - Reply & Note Submission Handler (Integrated with Activity & Reopen Tracking)
+ * Ticket Management - Reply & Note Submission Handler (Integrated with Notifications, Email & Logs - Phase 05)
  */
 
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth_check.php';
 require_once __DIR__ . '/../../includes/ticket_activity.php';
+require_once __DIR__ . '/../../includes/notifications.php';
+require_once __DIR__ . '/../../includes/email.php';
+require_once __DIR__ . '/../../includes/activity_log.php';
 
 require_login();
 
@@ -31,8 +34,15 @@ if ($ticketId <= 0) {
 
 $db = get_db();
 
-// 1. Fetch and Authorize Ticket Access
-$ticketStmt = $db->prepare("SELECT * FROM tickets WHERE id = ? LIMIT 1");
+// 1. Fetch and Authorize Ticket Access (joined with customer & agent data)
+$ticketStmt = $db->prepare("
+    SELECT t.*, u.name AS customer_name, u.email AS customer_email, a.name AS agent_name, a.email AS agent_email
+    FROM tickets t
+    JOIN users u ON t.user_id = u.id
+    LEFT JOIN users a ON t.assigned_to = a.id
+    WHERE t.id = ? 
+    LIMIT 1
+");
 $ticketStmt->execute([$ticketId]);
 $ticket = $ticketStmt->fetch();
 
@@ -138,8 +148,10 @@ try {
         }
     }
 
+    $isReopened = false;
     // A. Reopen Workflow: If customer replies to a closed/resolved ticket, automatically reopen ticket
     if ($user['role'] === ROLE_CUSTOMER && in_array($ticket['status'], [STATUS_RESOLVED, STATUS_CLOSED], true)) {
+        $isReopened = true;
         $updateTicketStmt = $db->prepare("
             UPDATE tickets 
             SET status = ?, resolved_at = NULL, closed_at = NULL, updated_at = NOW() 
@@ -163,11 +175,115 @@ try {
         }
     }
 
-    // Log Activity (Reply or Note)
+    // Log Ticket Specific Activity (Reply or Note)
     if ($messageType === MESSAGE_TYPE_NOTE) {
         log_ticket_activity($ticketId, $user['id'], 'internal_note_added', null, null, "Internal staff note added");
+        log_activity($user['id'], 'ticket', 'internal_note_added', "Added internal note on ticket #{$ticket['ticket_number']}", 'ticket', $ticketId);
     } else {
         log_ticket_activity($ticketId, $user['id'], 'reply_added', null, null, "Public reply posted");
+        log_activity($user['id'], 'ticket', 'reply_added', "Posted reply on ticket #{$ticket['ticket_number']}", 'ticket', $ticketId);
+    }
+
+    // C. Dispatch Notifications & Emails
+    $ticketUrl = url('modules/tickets/view.php?id=' . $ticketId);
+
+    if ($user['role'] === ROLE_CUSTOMER) {
+        // Customer posted reply -> notify assigned agent and admin
+        $staffToNotify = [];
+
+        if (!empty($ticket['assigned_to'])) {
+            $staffToNotify[] = [
+                'id'    => (int)$ticket['assigned_to'],
+                'name'  => $ticket['agent_name'],
+                'email' => $ticket['agent_email']
+            ];
+        }
+
+        // Also fetch active Admins (except current user if any)
+        $adminStmt = $db->prepare("SELECT id, name, email FROM users WHERE role = 'admin' AND status = 'active' AND id != ?");
+        $adminStmt->execute([$user['id']]);
+        $admins = $adminStmt->fetchAll();
+
+        foreach ($admins as $adm) {
+            // Avoid duplicate if admin is already the assigned agent
+            if (empty($ticket['assigned_to']) || (int)$ticket['assigned_to'] !== (int)$adm['id']) {
+                $staffToNotify[] = [
+                    'id'    => (int)$adm['id'],
+                    'name'  => $adm['name'],
+                    'email' => $adm['email']
+                ];
+            }
+        }
+
+        foreach ($staffToNotify as $staff) {
+            if ($isReopened) {
+                create_notification(
+                    $staff['id'],
+                    "Ticket Reopened: #{$ticket['ticket_number']}",
+                    "Customer {$user['name']} replied and reopened ticket: {$ticket['subject']}",
+                    NOTIF_TICKET_REOPENED,
+                    'ticket',
+                    $ticketId
+                );
+
+                send_email_notification(
+                    $staff['email'],
+                    $staff['name'],
+                    'ticket_reopened',
+                    [
+                        'ticket_number'  => $ticket['ticket_number'],
+                        'ticket_subject' => $ticket['subject'],
+                        'ticket_url'     => $ticketUrl
+                    ],
+                    $staff['id']
+                );
+            } else {
+                create_notification(
+                    $staff['id'],
+                    "Customer Reply: #{$ticket['ticket_number']}",
+                    "{$user['name']} replied on ticket: {$ticket['subject']}",
+                    NOTIF_TICKET_REPLY,
+                    'ticket',
+                    $ticketId
+                );
+
+                send_email_notification(
+                    $staff['email'],
+                    $staff['name'],
+                    'ticket_reply',
+                    [
+                        'ticket_number'  => $ticket['ticket_number'],
+                        'ticket_subject' => $ticket['subject'],
+                        'ticket_url'     => $ticketUrl
+                    ],
+                    $staff['id']
+                );
+            }
+        }
+    } else {
+        // Staff posted -> if public reply, notify Customer (Never notify customer for internal notes!)
+        if ($messageType === MESSAGE_TYPE_REPLY && (int)$ticket['user_id'] !== (int)$user['id']) {
+            create_notification(
+                (int)$ticket['user_id'],
+                "New Support Reply: #{$ticket['ticket_number']}",
+                "A support agent replied to your ticket: {$ticket['subject']}",
+                NOTIF_TICKET_REPLY,
+                'ticket',
+                $ticketId
+            );
+
+            send_email_notification(
+                $ticket['customer_email'],
+                $ticket['customer_name'],
+                'ticket_reply',
+                [
+                    'ticket_number'  => $ticket['ticket_number'],
+                    'ticket_subject' => $ticket['subject'],
+                    'ticket_url'     => $ticketUrl
+                ],
+                (int)$ticket['user_id']
+            );
+        }
     }
 
     $db->commit();

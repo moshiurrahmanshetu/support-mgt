@@ -38,10 +38,15 @@ if (!$agent) {
     redirect('modules/agents/index.php');
 }
 
+require_once __DIR__ . '/../../includes/activity_log.php';
+
 // Update status
 $updateStmt = $db->prepare("UPDATE users SET status = ?, updated_at = NOW() WHERE id = ?");
 $updateStmt->execute([$status, $id]);
 
 $label = ($status === STATUS_ACTIVE) ? 'activated' : 'deactivated';
+$user = current_user();
+log_activity($user['id'], 'agent', 'agent_status_changed', "Support agent {$agent['name']} was {$label}", 'user', $id);
+
 flash('success', "Agent <strong>" . e($agent['name']) . "</strong> has been {$label}.");
 redirect($_SERVER['HTTP_REFERER'] ?? 'modules/agents/index.php');

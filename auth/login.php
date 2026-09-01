@@ -56,6 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['user_id'] = (int)$user['id'];
                     $_SESSION['user'] = $user;
 
+                    // Log Activity
+                    require_once __DIR__ . '/../includes/activity_log.php';
+                    log_activity((int)$user['id'], 'auth', 'login', "User {$user['name']} ({$user['email']}) logged in");
+
                     clear_old_input();
                     flash('success', 'Welcome back, ' . $user['name'] . '!');
 

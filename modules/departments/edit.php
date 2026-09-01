@@ -68,6 +68,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $id
             ]);
 
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            $user = current_user();
+            log_activity($user['id'], 'department', 'department_updated', "Updated department: {$name} (ID: {$id})", 'department', $id);
+
             flash('success', "Department <strong>" . e($name) . "</strong> has been updated successfully!");
             redirect('modules/departments/index.php');
         }

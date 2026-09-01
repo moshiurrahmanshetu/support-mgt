@@ -19,7 +19,10 @@ $departmentFilter = (int)($_GET['department_id'] ?? 0);
 $agentFilter = (int)($_GET['agent_id'] ?? 0);
 $tagFilter = (int)($_GET['tag'] ?? 0);
 $sort = trim($_GET['sort'] ?? 'newest');
-$perPage = in_array((int)($_GET['per_page'] ?? 20), [20, 50, 100], true) ? (int)$_GET['per_page'] : 20;
+$perPageInput = (int)($_GET['per_page'] ?? 20);
+$perPage = in_array($perPageInput, [20, 50, 100], true)
+    ? $perPageInput
+    : 20;
 
 // Build Query based on User Role & Filters
 $whereClauses = [];
@@ -119,11 +122,13 @@ $countStmt = $db->prepare($countSql);
 $countStmt->execute($params);
 $totalRecords = (int)$countStmt->fetchColumn();
 
-// Pagination
-$page = max(1, (int)($_GET['page'] ?? 1));
-$limit = $perPage;
-$offset = ($page - 1) * $limit;
-$totalPages = ceil($totalRecords / $limit);
+// Safe Pagination
+$pagination = get_pagination_params($totalRecords, 20, [20, 50, 100]);
+$page = $pagination['page'];
+$limit = $pagination['per_page'];
+$offset = $pagination['offset'];
+$totalPages = $pagination['total_pages'];
+$perPage = $limit;
 
 // Fetch Tickets Query
 $ticketsSql = "

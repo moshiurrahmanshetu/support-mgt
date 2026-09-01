@@ -1,4 +1,4 @@
-# Database Documentation — Phases 01, 02, 03 & 04
+# Database Documentation — Phases 01, 02, 03, 04 & 05
 
 This directory contains the database migration scripts and seed data for **support-mgt**.
 
@@ -41,6 +41,17 @@ Contains:
   - 8 Default Ticket Tags (Technical, Billing, Payment, Login & Security, Account, Bug Report, Feature Request, Urgent Assistance).
   - 4 Default Canned Responses.
 
+### 5. `05_notifications_settings.sql` (Phase 05)
+Contains:
+- `notifications`: In-app notification inbox records (`id`, `user_id`, `title`, `message`, `type`, `reference_type`, `reference_id`, `is_read`, `created_at`).
+- `user_notification_preferences`: Fine-grained personal notification preferences (`id`, `user_id`, `email_ticket_created`, `email_ticket_assigned`, `email_ticket_reply`, `email_ticket_status`, `email_ticket_reopened`, `in_app_enabled`).
+- `activity_logs`: System-level activity audit trail (`id`, `user_id`, `module`, `action`, `description`, `ip_address`, `user_agent`, `reference_type`, `reference_id`, `created_at`).
+- `settings`: Application configuration repository (`id`, `setting_key`, `setting_value`, `setting_type`, `updated_at`).
+- **Initial Seeds**:
+  - Default General settings (`app_name`, `app_url`, `company_name`, `company_email`, `company_phone`, `timezone`, `date_format`).
+  - Default Support desk rules (`default_priority`, `default_status`, `allow_customer_attachments`, `max_attachment_size_mb`).
+  - Default Mail & Notification flags (`mail_enabled`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_pass`, `smtp_encryption`, `mail_from_name`, `mail_from_email`, `enable_in_app_notifications`, `enable_email_notifications`).
+
 ## Database Import Order in XAMPP
 
 Execute the SQL files in dependency order:
@@ -57,4 +68,7 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # Phase 04: Advanced Workflows, Tags, Canned Responses & Activity Logs
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\04_advanced_ticket_workflow.sql"
+
+# Phase 05: Notifications, Preferences, System Logs & Settings
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\05_notifications_settings.sql"
 ```

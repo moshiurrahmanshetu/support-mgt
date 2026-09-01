@@ -51,6 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 empty($description) ? null : $description,
                 $status
             ]);
+            $deptId = (int)$db->lastInsertId();
+
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            $currentUser = current_user();
+            log_activity($currentUser['id'], 'department', 'department_created', "Created department: {$name}", 'department', $deptId);
 
             clear_old_input();
             flash('success', "Department <strong>" . e($name) . "</strong> has been created successfully!");

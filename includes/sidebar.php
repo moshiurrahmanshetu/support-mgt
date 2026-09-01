@@ -1,6 +1,6 @@
 <?php
 /**
- * Master Sidebar Include (Collapsible & Role-Aware - Phase 04)
+ * Master Sidebar Include (Collapsible, Role-Aware & Phase 05 Ready)
  */
 
 require_once __DIR__ . '/functions.php';
@@ -35,7 +35,7 @@ function is_nav_active(string $target, string $currentScript, string $activePage
         <!-- Dashboard Link -->
         <li class="nav-item">
             <a href="<?= url('index.php'); ?>" 
-               class="nav-link-custom <?= (is_nav_active('index.php', $currentScript, $activePage) && !is_nav_active('profile', $currentScript, $activePage) && !is_nav_active('tickets', $currentScript, $activePage) && !is_nav_active('customers', $currentScript, $activePage) && !is_nav_active('agents', $currentScript, $activePage) && !is_nav_active('departments', $currentScript, $activePage) && !is_nav_active('tags', $currentScript, $activePage) && !is_nav_active('canned_responses', $currentScript, $activePage)) ? 'active' : ''; ?>" 
+               class="nav-link-custom <?= (is_nav_active('index.php', $currentScript, $activePage) && !is_nav_active('profile', $currentScript, $activePage) && !is_nav_active('tickets', $currentScript, $activePage) && !is_nav_active('customers', $currentScript, $activePage) && !is_nav_active('agents', $currentScript, $activePage) && !is_nav_active('departments', $currentScript, $activePage) && !is_nav_active('tags', $currentScript, $activePage) && !is_nav_active('canned_responses', $currentScript, $activePage) && !is_nav_active('notifications', $currentScript, $activePage) && !is_nav_active('activity_logs', $currentScript, $activePage) && !is_nav_active('settings', $currentScript, $activePage)) ? 'active' : ''; ?>" 
                data-bs-toggle="tooltip" 
                data-bs-placement="right" 
                title="Dashboard">
@@ -97,6 +97,18 @@ function is_nav_active(string $target, string $currentScript, string $activePage
             </li>
         <?php endif; ?>
 
+        <!-- Notifications Link (All Roles) -->
+        <li class="nav-item">
+            <a href="<?= url('modules/notifications/index.php'); ?>" 
+               class="nav-link-custom <?= is_nav_active('notifications', $currentScript, $activePage) ? 'active' : ''; ?>" 
+               data-bs-toggle="tooltip" 
+               data-bs-placement="right" 
+               title="Notifications">
+                <i class="bi bi-bell"></i>
+                <span class="nav-text">Notifications</span>
+            </a>
+        </li>
+
         <?php if ($user && $user['role'] === ROLE_ADMIN): ?>
             <!-- Admin Management Section -->
             <li class="nav-header">
@@ -148,6 +160,30 @@ function is_nav_active(string $target, string $currentScript, string $activePage
                    title="Ticket Tags">
                     <i class="bi bi-tags"></i>
                     <span class="nav-text">Ticket Tags</span>
+                </a>
+            </li>
+
+            <!-- System Activity Logs -->
+            <li class="nav-item">
+                <a href="<?= url('modules/activity_logs/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('activity_logs', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Activity Logs">
+                    <i class="bi bi-clock-history"></i>
+                    <span class="nav-text">Activity Logs</span>
+                </a>
+            </li>
+
+            <!-- System Settings -->
+            <li class="nav-item">
+                <a href="<?= url('modules/settings/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('settings', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="System Settings">
+                    <i class="bi bi-gear"></i>
+                    <span class="nav-text">Settings</span>
                 </a>
             </li>
         <?php endif; ?>

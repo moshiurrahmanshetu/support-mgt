@@ -7,6 +7,9 @@ require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/auth_check.php';
 require_once __DIR__ . '/../../includes/ticket_activity.php';
+require_once __DIR__ . '/../../includes/notifications.php';
+require_once __DIR__ . '/../../includes/email.php';
+require_once __DIR__ . '/../../includes/activity_log.php';
 
 require_login();
 
@@ -160,8 +163,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // Log Activity
+                // Log Ticket Specific Activity
                 log_ticket_activity($ticketId, $user['id'], 'ticket_created', null, $ticketNumber, "Ticket created with subject '{$subject}'");
+
+                // System Activity Log
+                log_activity($user['id'], 'ticket', 'ticket_created', "Created ticket #{$ticketNumber} - {$subject}", 'ticket', $ticketId);
+
+                // In-App Notifications for Staff
+                $staffQuery = "SELECT id, email, name FROM users WHERE (role = 'admin' OR (role = 'agent' AND department_id = ?)) AND status = 'active' AND id != ?";
+                $staffStmt = $db->prepare($staffQuery);
+                $staffStmt->execute([(int)$departmentId, $user['id']]);
+                $staffList = $staffStmt->fetchAll();
+
+                foreach ($staffList as $staff) {
+                    create_notification(
+                        (int)$staff['id'],
+                        "New Ticket: #{$ticketNumber}",
+                        "New ticket created by {$user['name']}: {$subject}",
+                        NOTIF_TICKET_CREATED,
+                        'ticket',
+                        $ticketId
+                    );
+
+                    send_email_notification(
+                        $staff['email'],
+                        $staff['name'],
+                        'ticket_created',
+                        [
+                            'ticket_number'   => $ticketNumber,
+                            'ticket_subject'  => $subject,
+                            'ticket_priority' => ucfirst($priority),
+                            'ticket_status'   => 'Open',
+                            'ticket_url'      => url('modules/tickets/view.php?id=' . $ticketId)
+                        ],
+                        (int)$staff['id']
+                    );
+                }
+
+                // Email confirmation to customer
+                if ($user['role'] === ROLE_CUSTOMER) {
+                    send_email_notification(
+                        $user['email'],
+                        $user['name'],
+                        'ticket_created',
+                        [
+                            'ticket_number'   => $ticketNumber,
+                            'ticket_subject'  => $subject,
+                            'ticket_priority' => ucfirst($priority),
+                            'ticket_status'   => 'Open',
+                            'ticket_url'      => url('modules/tickets/view.php?id=' . $ticketId)
+                        ],
+                        (int)$user['id']
+                    );
+                }
 
                 $db->commit();
 

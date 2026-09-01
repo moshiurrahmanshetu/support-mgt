@@ -42,6 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Sync updated info with session
             refresh_user_session((int)$user['id']);
 
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            log_activity((int)$user['id'], 'profile', 'profile_updated', "Updated profile details (name: {$name})");
+
             flash('success', 'Profile information updated successfully!');
             redirect('modules/profile/index.php');
         }

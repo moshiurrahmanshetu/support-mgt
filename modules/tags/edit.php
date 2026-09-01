@@ -62,6 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ");
             $updateStmt->execute([$name, $color, $id]);
 
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            $user = current_user();
+            log_activity($user['id'], 'tag', 'tag_updated', "Updated ticket tag: {$name} ({$color})", 'tag', $id);
+
             flash('success', "Tag <strong>" . e($name) . "</strong> updated successfully!");
             redirect('modules/tags/index.php');
         }

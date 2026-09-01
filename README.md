@@ -35,6 +35,15 @@ A lightweight, enterprise-ready Customer Support Management System built with **
 - **Response & Resolution Metrics**: First response time tracking (`first_response_at`) on initial staff reply and resolution duration tracking (`resolved_at`).
 - **Advanced Search, Filters & Sorting**: Search by ticket #, subject, customer name/email; filter by Status, Priority, Department, Agent, and Tag; sorting by Newest, Oldest, Updated, and Priority; pagination (20, 50, 100).
 
+### Phase 05: Notifications, Email, Activity Logs & System Settings
+- **Robust Pagination Engine**: Mathematically guarded `get_pagination_params()` ensuring zero division is impossible, sanitizing `per_page` (whitelist: 20, 50, 100), clamping `page`, and preserving active filter queries across pagination.
+- **In-App Notification Center**: User inbox for alerts (`ticket_created`, `ticket_assigned`, `ticket_reply`, `ticket_status_changed`, `ticket_reopened`), unread filtering, and single/bulk mark-as-read.
+- **Live Topbar Notification Bell**: Real-time unread badge counter and quick-action dropdown menu showing the 5 most recent notifications.
+- **Email Notification Infrastructure**: Reusable template engine supporting automated email dispatch on ticket lifecycle events, with safe fail-open error handling (email failure never halts ticket operations).
+- **User Notification Preferences**: Fine-grained personal preferences allowing customers and staff to toggle email/in-app notification channels independently.
+- **System Activity Logs**: Admin audit trail logging user authentication (login/logout), customer/agent management, department shifts, tag & canned response changes, and system settings updates.
+- **Admin System Settings**: Tabbed configuration portal for General settings (App Name, URL, Company, Timezone with PHP validation, Date Format), Support Desk rules, Email/SMTP delivery, and Global notification toggles.
+
 ---
 
 ## 🗄️ Database Architecture & Migration Order
@@ -47,6 +56,7 @@ database/
 ├── 02_ticket_management.sql          # Phase 02: tickets, ticket_messages, ticket_attachments
 ├── 03_customer_agent_department.sql  # Phase 03: departments, department foreign keys
 ├── 04_advanced_ticket_workflow.sql   # Phase 04: tags, relations, canned responses, activity logs
+├── 05_notifications_settings.sql     # Phase 05: notifications, preferences, system logs, settings
 └── README.md                         # Migration documentation
 ```
 
@@ -64,6 +74,9 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # 4. Phase 04: Advanced Workflows, Tags, Canned Responses & Logs
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\04_advanced_ticket_workflow.sql"
+
+# 5. Phase 05: Notifications, Preferences, System Logs & Settings
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\05_notifications_settings.sql"
 ```
 
 ---
@@ -81,7 +94,8 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 1. **SQL Injection Prevention**: All database queries strictly use PDO prepared statements with parameterized inputs.
 2. **Cross-Site Scripting (XSS)**: User-supplied output is escaped via `htmlspecialchars()` using `e()`.
 3. **Cross-Site Request Forgery (CSRF)**: All POST requests require a verified CSRF session token.
-4. **IDOR & Role Guards**: Server-side authorization checks ensure users can only access resources permitted by their role.
+4. **IDOR & Role Guards**: Server-side authorization checks ensure users can only access resources and notifications permitted by their role and ownership.
 5. **Upload Protection**: Strict whitelist validation, randomized filenames, and `.htaccess` execution prevention in upload folders.
 6. **Admin Deactivation Protection**: Server-side checks guarantee at least one active administrator remains at all times.
-7. **Zero Destructive Cascades**: Deleting tags removes pivot relations only, never deleting tickets or conversation logs.
+7. **Zero Destructive Cascades**: Deleting tags removes pivot relations only; deleting notifications never deletes tickets or messages.
+8. **Sensitive Secret Protection**: SMTP passwords and auth secrets are never displayed back in forms or logged to activity logs.

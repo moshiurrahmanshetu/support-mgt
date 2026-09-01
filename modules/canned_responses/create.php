@@ -38,6 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 VALUES (?, ?, ?, NOW(), NOW())
             ");
             $insertStmt->execute([$title, $content, $user['id']]);
+            $cannedId = (int)$db->lastInsertId();
+
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            log_activity($user['id'], 'canned_response', 'canned_response_created', "Created canned response: {$title}", 'canned_response', $cannedId);
 
             clear_old_input();
             flash('success', "Canned response template <strong>" . e($title) . "</strong> created successfully!");

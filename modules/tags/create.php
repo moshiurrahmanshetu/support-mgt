@@ -46,6 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 VALUES (?, ?, NOW(), NOW())
             ");
             $insertStmt->execute([$name, $color]);
+            $tagId = (int)$db->lastInsertId();
+
+            require_once __DIR__ . '/../../includes/activity_log.php';
+            $user = current_user();
+            log_activity($user['id'], 'tag', 'tag_created', "Created ticket tag: {$name} ({$color})", 'tag', $tagId);
 
             clear_old_input();
             flash('success', "Tag <strong>" . e($name) . "</strong> has been created successfully!");

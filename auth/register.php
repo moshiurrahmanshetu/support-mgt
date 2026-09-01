@@ -81,6 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hashedPassword,
                 $status
             ]);
+            $newUserId = (int)$db->lastInsertId();
+
+            require_once __DIR__ . '/../includes/activity_log.php';
+            log_activity($newUserId, 'auth', 'registration', "New customer {$name} ({$email}) registered");
 
             clear_old_input();
             flash('success', 'Registration successful! You can now sign in with your credentials.');

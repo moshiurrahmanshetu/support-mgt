@@ -39,11 +39,12 @@ $countStmt = $db->prepare($countSql);
 $countStmt->execute($params);
 $totalRecords = (int)$countStmt->fetchColumn();
 
-// Pagination
-$page = max(1, (int)($_GET['page'] ?? 1));
-$limit = 15;
-$offset = ($page - 1) * $limit;
-$totalPages = ceil($totalRecords / $limit);
+// Safe Pagination
+$pagination = get_pagination_params($totalRecords, 15, [15, 30, 50]);
+$page = $pagination['page'];
+$limit = $pagination['per_page'];
+$offset = $pagination['offset'];
+$totalPages = $pagination['total_pages'];
 
 // Fetch Customers Query with Ticket Counts
 $customersSql = "
