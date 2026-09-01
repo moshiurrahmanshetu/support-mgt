@@ -6,7 +6,7 @@
 
 // Application Info
 define('APP_NAME', 'SupportDesk');
-define('APP_VERSION', '1.0.0');
+define('APP_VERSION', '1.1.0');
 define('APP_URL', 'http://localhost/support-mgt');
 
 // Database Configuration
@@ -21,10 +21,13 @@ define('DB_CHARSET', 'utf8mb4');
 define('SESSION_NAME', 'support_mgt_session');
 define('SESSION_LIFETIME', 86400); // 1 day
 
-// Upload Path
+// Upload Paths
 define('UPLOAD_DIR', __DIR__ . '/../uploads');
 define('AVATAR_UPLOAD_DIR', __DIR__ . '/../uploads/avatars');
 define('AVATAR_URL_PATH', APP_URL . '/uploads/avatars');
+
+define('TICKET_UPLOAD_DIR', __DIR__ . '/../uploads/tickets');
+define('TICKET_URL_PATH', APP_URL . '/uploads/tickets');
 
 // Error Reporting (Turn off display_errors in production)
 ini_set('display_errors', '1');

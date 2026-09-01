@@ -35,13 +35,59 @@ function is_nav_active(string $target, string $currentScript, string $activePage
         <!-- Dashboard Link -->
         <li class="nav-item">
             <a href="<?= url('index.php'); ?>" 
-               class="nav-link-custom <?= (is_nav_active('index.php', $currentScript, $activePage) && !is_nav_active('profile', $currentScript, $activePage)) ? 'active' : ''; ?>" 
+               class="nav-link-custom <?= (is_nav_active('index.php', $currentScript, $activePage) && !is_nav_active('profile', $currentScript, $activePage) && !is_nav_active('tickets', $currentScript, $activePage)) ? 'active' : ''; ?>" 
                data-bs-toggle="tooltip" 
                data-bs-placement="right" 
                title="Dashboard">
                 <i class="bi bi-speedometer2"></i>
                 <span class="nav-text">Dashboard</span>
             </a>
+        </li>
+
+        <!-- Support Section Header -->
+        <li class="nav-header">
+            <span class="nav-header-text">Support Desk</span>
+        </li>
+
+        <?php if ($user && $user['role'] === ROLE_CUSTOMER): ?>
+            <!-- Customer Links -->
+            <li class="nav-item">
+                <a href="<?= url('modules/tickets/index.php'); ?>" 
+                   class="nav-link-custom <?= (is_nav_active('tickets', $currentScript, $activePage) && !is_nav_active('create.php', $currentScript, $activePage)) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="My Tickets">
+                    <i class="bi bi-ticket-perforated"></i>
+                    <span class="nav-text">My Tickets</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="<?= url('modules/tickets/create.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('create.php', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Create Ticket">
+                    <i class="bi bi-plus-circle"></i>
+                    <span class="nav-text">Create Ticket</span>
+                </a>
+            </li>
+        <?php else: ?>
+            <!-- Admin / Agent Links -->
+            <li class="nav-item">
+                <a href="<?= url('modules/tickets/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('tickets', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Tickets">
+                    <i class="bi bi-ticket-perforated"></i>
+                    <span class="nav-text">Support Tickets</span>
+                </a>
+            </li>
+        <?php endif; ?>
+
+        <!-- Account Section Header -->
+        <li class="nav-header">
+            <span class="nav-header-text">Account</span>
         </li>
 
         <!-- Profile Link -->
@@ -55,15 +101,6 @@ function is_nav_active(string $target, string $currentScript, string $activePage
                 <span class="nav-text">My Profile</span>
             </a>
         </li>
-
-        <!-- User Role-specific Menu Slots (Ready for Future Modules) -->
-        <?php if ($user && $user['role'] === ROLE_ADMIN): ?>
-            <!-- Admin Role Area (Extensible for Phase 02+) -->
-        <?php elseif ($user && $user['role'] === ROLE_AGENT): ?>
-            <!-- Agent Role Area (Extensible for Phase 02+) -->
-        <?php elseif ($user && $user['role'] === ROLE_CUSTOMER): ?>
-            <!-- Customer Role Area (Extensible for Phase 02+) -->
-        <?php endif; ?>
     </ul>
 
     <!-- Sidebar Footer / Account Info -->

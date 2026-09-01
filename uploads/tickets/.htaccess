@@ -1,0 +1,8 @@
+# Disable Script Execution in Tickets Upload Directory
+<FilesMatch "(?i)\.(php|phtml|php3|php4|php5|php7|php8|phps|cgi|pl|exe|sh|py|asp|aspx|js|vbs|bat|cmd)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Disable Directory Indexing
+Options -Indexes

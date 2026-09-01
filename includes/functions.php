@@ -29,22 +29,41 @@ function e(?string $value): string {
 }
 
 /**
- * Generate absolute URL for the application
+ * Generate absolute URL for the application without duplicate subfolder prefixing
  */
 function url(string $path = ''): string {
+    // If it is already a full URL (http:// or https://), return it directly
+    if (preg_match('#^https?://#i', $path)) {
+        return $path;
+    }
+
     $baseUrl = rtrim(APP_URL, '/');
-    $cleanPath = ltrim($path, '/');
-    return empty($cleanPath) ? $baseUrl : $baseUrl . '/' . $cleanPath;
+    
+    // Extract base URL path (e.g. '/support-mgt')
+    $basePath = parse_url($baseUrl, PHP_URL_PATH);
+    $basePathClean = !empty($basePath) ? trim($basePath, '/') : '';
+
+    $cleanPath = trim($path, '/');
+
+    // If $cleanPath starts with the project directory name, strip it to prevent duplicate path concatenation
+    if (!empty($basePathClean)) {
+        if ($cleanPath === $basePathClean) {
+            $cleanPath = '';
+        } elseif (strpos($cleanPath, $basePathClean . '/') === 0) {
+            $cleanPath = substr($cleanPath, strlen($basePathClean) + 1);
+            $cleanPath = trim($cleanPath, '/');
+        }
+    }
+
+    return empty($cleanPath) ? $baseUrl . '/' : $baseUrl . '/' . $cleanPath;
 }
 
 /**
  * Redirect to a given URL or internal path
  */
 function redirect(string $path): void {
-    if (!filter_var($path, FILTER_VALIDATE_URL)) {
-        $path = url($path);
-    }
-    header('Location: ' . $path);
+    $targetUrl = url($path);
+    header('Location: ' . $targetUrl);
     exit;
 }
 
@@ -134,4 +153,49 @@ function get_avatar_url(?string $avatarFilename): string {
  */
 function sanitize_input(string $data): string {
     return trim(strip_tags($data));
+}
+
+/**
+ * Render solid badge for Ticket Status
+ */
+function render_status_badge(string $status): string {
+    $status = strtolower($status);
+    $badges = [
+        STATUS_OPEN        => '<span class="badge badge-status-open"><i class="bi bi-circle-fill fs-8 me-1"></i>Open</span>',
+        STATUS_IN_PROGRESS => '<span class="badge badge-status-in-progress"><i class="bi bi-arrow-repeat me-1"></i>In Progress</span>',
+        STATUS_PENDING     => '<span class="badge badge-status-pending"><i class="bi bi-hourglass-split me-1"></i>Pending</span>',
+        STATUS_RESOLVED    => '<span class="badge badge-status-resolved"><i class="bi bi-check2-circle me-1"></i>Resolved</span>',
+        STATUS_CLOSED      => '<span class="badge badge-status-closed"><i class="bi bi-lock-fill me-1"></i>Closed</span>',
+    ];
+
+    return $badges[$status] ?? '<span class="badge bg-secondary">' . e($status) . '</span>';
+}
+
+/**
+ * Render solid badge for Ticket Priority
+ */
+function render_priority_badge(string $priority): string {
+    $priority = strtolower($priority);
+    $badges = [
+        PRIORITY_LOW    => '<span class="badge badge-priority-low"><i class="bi bi-arrow-down-short"></i>Low</span>',
+        PRIORITY_MEDIUM => '<span class="badge badge-priority-medium"><i class="bi bi-dash"></i>Medium</span>',
+        PRIORITY_HIGH   => '<span class="badge badge-priority-high"><i class="bi bi-arrow-up-short"></i>High</span>',
+        PRIORITY_URGENT => '<span class="badge badge-priority-urgent"><i class="bi bi-exclamation-triangle-fill me-1"></i>Urgent</span>',
+    ];
+
+    return $badges[$priority] ?? '<span class="badge bg-secondary">' . e($priority) . '</span>';
+}
+
+/**
+ * Format bytes into readable string (KB, MB, GB)
+ */
+function format_file_size(int $bytes): string {
+    if ($bytes >= 1073741824) {
+        return number_format($bytes / 1073741824, 2) . ' GB';
+    } elseif ($bytes >= 1048576) {
+        return number_format($bytes / 1048576, 2) . ' MB';
+    } elseif ($bytes >= 1024) {
+        return number_format($bytes / 1024, 1) . ' KB';
+    }
+    return $bytes . ' bytes';
 }
