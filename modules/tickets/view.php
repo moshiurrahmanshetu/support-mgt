@@ -54,6 +54,14 @@ if ($user['role'] === ROLE_CUSTOMER && (int)$ticket['user_id'] !== (int)$user['i
     redirect('modules/tickets/index.php');
 }
 
+// 2.1 Mark as viewed by Admin if loaded by Admin or Support Manager
+$isAdminOrManager = (is_admin_user() || has_role(['admin', 'administrator', 'support_manager']));
+if ($isAdminOrManager && empty($ticket['admin_viewed_at'])) {
+    $markViewedStmt = $db->prepare("UPDATE tickets SET admin_viewed_at = NOW() WHERE id = ?");
+    $markViewedStmt->execute([$ticketId]);
+    $ticket['admin_viewed_at'] = date('Y-m-d H:i:s');
+}
+
 // 3. Fetch Conversation Messages
 if ($user['role'] === ROLE_CUSTOMER) {
     $msgStmt = $db->prepare("
@@ -239,6 +247,27 @@ include __DIR__ . '/../../includes/header.php';
                 </div>
 
                 <div class="d-flex flex-wrap gap-2">
+                    <?php if ($isAdminOrManager): ?>
+                        <?php if (!empty($ticket['admin_viewed_at'])): ?>
+                            <form action="<?= url('modules/tickets/toggle_viewed.php'); ?>" method="POST" class="d-inline m-0">
+                                <?= csrf_field(); ?>
+                                <input type="hidden" name="id" value="<?= $ticket['id']; ?>">
+                                <input type="hidden" name="action" value="mark_unread">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm" title="Mark this ticket as Unread/New for Admin">
+                                    <i class="bi bi-envelope me-1"></i> Mark as Unread
+                                </button>
+                            </form>
+                        <?php else: ?>
+                            <form action="<?= url('modules/tickets/toggle_viewed.php'); ?>" method="POST" class="d-inline m-0">
+                                <?= csrf_field(); ?>
+                                <input type="hidden" name="id" value="<?= $ticket['id']; ?>">
+                                <input type="hidden" name="action" value="mark_read">
+                                <button type="submit" class="btn btn-outline-success btn-sm" title="Mark this ticket as Read">
+                                    <i class="bi bi-envelope-open me-1"></i> Mark as Read
+                                </button>
+                            </form>
+                        <?php endif; ?>
+                    <?php endif; ?>
                     <a href="#replyForm" class="btn btn-primary btn-sm">
                         <i class="bi bi-reply-fill"></i> Post Reply
                     </a>

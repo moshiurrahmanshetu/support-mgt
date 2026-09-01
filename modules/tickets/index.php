@@ -58,7 +58,9 @@ if (!empty($search)) {
 }
 
 // Status Filter
-if (!empty($statusFilter) && in_array($statusFilter, VALID_TICKET_STATUSES, true)) {
+if ($statusFilter === 'new' || $statusFilter === 'unread') {
+    $whereClauses[] = "u.role = 'customer' AND t.admin_viewed_at IS NULL";
+} elseif (!empty($statusFilter) && in_array($statusFilter, VALID_TICKET_STATUSES, true)) {
     $whereClauses[] = 't.status = ?';
     $params[] = $statusFilter;
 }
@@ -141,11 +143,13 @@ $ticketsSql = "
         t.created_at,
         t.updated_at,
         t.first_response_at,
+        t.admin_viewed_at,
         t.resolved_at,
         d.name AS department_name,
         u.id AS customer_id,
         u.name AS customer_name,
         u.email AS customer_email,
+        u.role AS customer_role,
         a.name AS agent_name,
         (
             SELECT GROUP_CONCAT(CONCAT(tt.name, ':::', tt.color) SEPARATOR '|||')
@@ -237,6 +241,9 @@ include __DIR__ . '/../../includes/header.php';
                 <div class="col-6 col-md-2">
                     <select name="status" class="form-select">
                         <option value="">All Statuses</option>
+                        <?php if ($user['role'] !== ROLE_CUSTOMER): ?>
+                            <option value="new" <?= ($statusFilter === 'new') ? 'selected' : ''; ?>>New / Unseen</option>
+                        <?php endif; ?>
                         <?php foreach (VALID_TICKET_STATUSES as $st): ?>
                             <option value="<?= e($st); ?>" <?= ($statusFilter === $st) ? 'selected' : ''; ?>>
                                 <?= ucfirst(str_replace('_', ' ', $st)); ?>
@@ -344,9 +351,14 @@ include __DIR__ . '/../../includes/header.php';
                                 <tr>
                                     <!-- Ticket Number -->
                                     <td class="ps-3 fw-bold">
-                                        <a href="<?= url('modules/tickets/view.php?id=' . $tkt['id']); ?>" class="text-decoration-none font-monospace">
-                                            <?= e($tkt['ticket_number']); ?>
-                                        </a>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <a href="<?= url('modules/tickets/view.php?id=' . $tkt['id']); ?>" class="text-decoration-none font-monospace">
+                                                <?= e($tkt['ticket_number']); ?>
+                                            </a>
+                                            <?php if ($user['role'] !== ROLE_CUSTOMER && $tkt['customer_role'] === 'customer' && is_null($tkt['admin_viewed_at'])): ?>
+                                                <span class="badge bg-danger rounded-pill fw-bold" style="font-size: 0.62rem; padding: 0.2em 0.55em;" title="New unseen customer ticket">New</span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
 
                                     <!-- Subject & Tags -->

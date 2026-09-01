@@ -241,3 +241,31 @@ function get_old_input(): array
 {
     return $_SESSION['old_input'] ?? [];
 }
+
+/**
+ * Retrieve the count of new / unseen customer support tickets requiring Admin attention
+ *
+ * @return int
+ */
+function get_new_customer_ticket_count(): int {
+    static $cachedCount = null;
+    if ($cachedCount !== null) {
+        return $cachedCount;
+    }
+
+    $db = get_db();
+    try {
+        $stmt = $db->query("
+            SELECT COUNT(*) 
+            FROM tickets t
+            JOIN users u ON t.user_id = u.id
+            WHERE u.role = 'customer'
+              AND t.admin_viewed_at IS NULL
+        ");
+        $cachedCount = (int)$stmt->fetchColumn();
+        return $cachedCount;
+    } catch (Exception $e) {
+        return 0;
+    }
+}
+

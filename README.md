@@ -65,25 +65,18 @@ A lightweight, enterprise-ready Customer Support Management System built with **
 - **Secure CSV Export Engine (`modules/reports/export.php`)**: Native streaming export for Tickets, Agents, Customers, and Departments with CSV Formula Injection protection (`=`, `+`, `-`, `@`), UTF-8 BOM encoding, parameter filtering, and `report_exported` activity logging.
 
 ### Phase 08: User Management + Role Management + Permissions + Customer Registration
-- **User Management Module (`modules/users/`)**:
-  - Full CRUD for user accounts (`index.php`, `create.php`, `edit.php`, `view.php`, `roles.php`, `status.php`, `delete.php`).
-  - Search, role filtering, status filtering, and safe pagination (20, 50, 100).
-  - Soft delete support (`deleted_at`) preserving historical tickets and activity audit trails intact.
-  - Server-side **Last Administrator Safety Guard** preventing the deactivation, deletion, or demotion of the final active admin.
-- **Role Management Module (`modules/roles/`)**:
-  - Full CRUD for roles (`index.php`, `create.php`, `edit.php`, `view.php`, `permissions.php`, `delete.php`).
-  - System role protection (`is_system = 1`) preventing deletion of core roles (`administrator`, `support_manager`, `support_agent`, `customer`).
-  - Role deletion blocker preventing removal of custom roles while actively assigned to users.
-- **Granular Permissions Matrix (`modules/roles/permissions.php`)**:
-  - 52 distinct system permissions grouped cleanly by functional module.
-  - Interactive permissions matrix with "Select All" / "Toggle Module" capabilities, saving in a transaction.
-- **Centralized Permission Helpers (`includes/permissions.php`)**:
-  - `has_permission()`, `require_permission()`, `assign_user_role()`, `is_admin_user()`, `can_modify_user_role_or_status()`.
-  - Automatic superadmin rule: Administrators have full access across all permissions without manual checkbox assignment.
-- **Public Customer Registration Workflow (`auth/register.php`)**:
-  - Self-service registration automatically assigned the `customer` role server-side.
-  - Ignores any client-submitted `role` or `permissions` fields, preventing privilege escalation.
-  - Dispatches welcome in-app notification and records `customer_registered` activity log.
+- **User Management Module (`modules/users/`)**: Full CRUD, role assignment, status toggling, and soft delete with last-admin protection.
+- **Role Management Module (`modules/roles/`)**: Full CRUD, system role safeguards, and 52 granular permissions matrix.
+- **Customer Management CRUD (`modules/customers/`)**: Create, view, edit, status toggle, soft delete, and restore customer accounts with full ticket preservation.
+- **Public Customer Registration (`auth/register.php`)**: Secure registration workflow enforcing customer role server-side.
+
+### Phase 08.1: New Support Ticket Sidebar Counter
+- **Real-Time Sidebar Ticket Counter**: Displays a solid red badge count beside `Support Tickets` in the Admin and Support Manager sidebar for unseen customer inquiries.
+- **Unseen Customer Inquiries Definition**: Customer-created tickets where `admin_viewed_at IS NULL`. Staff-created tickets are marked viewed immediately and do not inflate the counter.
+- **Automatic Viewed Tracking (`modules/tickets/view.php`)**: When an Admin or Support Manager opens a ticket detail view, `admin_viewed_at` is automatically updated to the current timestamp.
+- **Manual Read/Unread Toggle (`modules/tickets/toggle_viewed.php`)**: Provides quick actions to "Mark as Unread" or "Mark as Read" with CSRF protection.
+- **New / Unseen Ticket Filter (`modules/tickets/index.php`)**: Adds a `New / Unseen` filter and visual badge indicator in the ticket table.
+- **Centralized Counter Helper (`includes/functions.php`)**: `get_new_customer_ticket_count()` provides single-source-of-truth query logic.
 
 ---
 
@@ -101,6 +94,7 @@ database/
 ├── 06_knowledge_base.sql             # Phase 06: categories, articles, faqs, default KB seeds
 ├── 07_reports.sql                    # Phase 07: documentation & performance indexes
 ├── 08_user_role_customer.sql         # Phase 08: roles, permissions, user_roles, role_permissions
+├── 08_1_ticket_admin_viewed.sql      # Phase 08.1: admin_viewed_at column and index
 └── README.md                         # Migration documentation
 ```
 

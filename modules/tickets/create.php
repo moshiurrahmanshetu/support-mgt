@@ -97,10 +97,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->beginTransaction();
 
                 // Insert placeholder record
+                // Determine admin_viewed_at: NULL if customer created, NOW if staff created
+                $adminViewedAt = ($user['role'] === ROLE_CUSTOMER) ? null : date('Y-m-d H:i:s');
+
                 $tempNumber = 'TMP-' . bin2hex(random_bytes(6));
                 $insertTicketStmt = $db->prepare("
-                    INSERT INTO tickets (ticket_number, user_id, department_id, subject, description, priority, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                    INSERT INTO tickets (ticket_number, user_id, department_id, subject, description, priority, status, admin_viewed_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
                 ");
                 $insertTicketStmt->execute([
                     $tempNumber,
@@ -109,7 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $subject,
                     $description,
                     $priority,
-                    STATUS_OPEN
+                    STATUS_OPEN,
+                    $adminViewedAt
                 ]);
 
                 $ticketId = (int)$db->lastInsertId();

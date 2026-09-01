@@ -71,16 +71,24 @@ function is_nav_active(string $target, string $currentScript, string $activePage
                     <span class="nav-text">Create Ticket</span>
                 </a>
             </li>
-        <?php else: ?>
             <!-- Admin / Agent Support Links -->
+            <?php
+            $newCustomerTicketCount = 0;
+            if ($user && (is_admin_user() || has_role(['admin', 'administrator', 'support_manager']))) {
+                $newCustomerTicketCount = get_new_customer_ticket_count();
+            }
+            ?>
             <li class="nav-item">
                 <a href="<?= url('modules/tickets/index.php'); ?>" 
-                   class="nav-link-custom <?= is_nav_active('tickets', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   class="nav-link-custom d-flex align-items-center <?= is_nav_active('tickets', $currentScript, $activePage) ? 'active' : ''; ?>" 
                    data-bs-toggle="tooltip" 
                    data-bs-placement="right" 
-                   title="Support Tickets">
+                   title="<?= $newCustomerTicketCount > 0 ? 'Support Tickets (' . $newCustomerTicketCount . ' new)' : 'Support Tickets'; ?>">
                     <i class="bi bi-ticket-perforated"></i>
-                    <span class="nav-text">Support Tickets</span>
+                    <span class="nav-text flex-grow-1">Support Tickets</span>
+                    <?php if ($newCustomerTicketCount > 0): ?>
+                        <span class="badge bg-danger rounded-pill ms-auto nav-badge fw-bold" style="font-size: 0.7rem; padding: 0.25em 0.55em;"><?= $newCustomerTicketCount; ?></span>
+                    <?php endif; ?>
                 </a>
             </li>
 
