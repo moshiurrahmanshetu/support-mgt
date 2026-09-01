@@ -44,6 +44,16 @@ A lightweight, enterprise-ready Customer Support Management System built with **
 - **System Activity Logs**: Admin audit trail logging user authentication (login/logout), customer/agent management, department shifts, tag & canned response changes, and system settings updates.
 - **Admin System Settings**: Tabbed configuration portal for General settings (App Name, URL, Company, Timezone with PHP validation, Date Format), Support Desk rules, Email/SMTP delivery, and Global notification toggles.
 
+### Phase 06: Knowledge Base, FAQs & Public Support Center
+- **Public Support Center Portal (`modules/knowledge_base/`)**: Customer-facing help center with prominent hero search, category grid, featured guides, popular articles, and interactive FAQ accordion.
+- **Knowledge Base Categories**: Topic management with custom icons, sort orders, and unique slug generation. Deletion safety blocker prevents removing categories containing active articles.
+- **Knowledge Base Articles**: Rich article documentation with excerpts, view counters (session-guarded to prevent refresh abuse), featured image uploads (JPEG, PNG, WebP), and publish/draft controls.
+- **Article Search Engine**: Prepared-statement parameterized search across title, excerpt, and content, restricted strictly to published articles in active categories.
+- **Related Articles**: Contextual recommendation widget rendering top articles from the same category on article pages.
+- **Frequently Asked Questions (FAQ)**: Admin FAQ management with drag/sort ordering and collapsible Bootstrap accordion on the public portal.
+- **Live Ticket Creation Auto-Suggestions**: Non-blocking Vanilla JavaScript auto-suggestion box beneath ticket subject input that dynamically queries published solutions.
+- **System Settings Integration**: Global toggles for `knowledge_base_enabled` and `faq_enabled`.
+
 ---
 
 ## 🗄️ Database Architecture & Migration Order
@@ -57,6 +67,7 @@ database/
 ├── 03_customer_agent_department.sql  # Phase 03: departments, department foreign keys
 ├── 04_advanced_ticket_workflow.sql   # Phase 04: tags, relations, canned responses, activity logs
 ├── 05_notifications_settings.sql     # Phase 05: notifications, preferences, system logs, settings
+├── 06_knowledge_base.sql             # Phase 06: categories, articles, faqs, default KB seeds
 └── README.md                         # Migration documentation
 ```
 
@@ -77,6 +88,9 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # 5. Phase 05: Notifications, Preferences, System Logs & Settings
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\05_notifications_settings.sql"
+
+# 6. Phase 06: Knowledge Base, Categories, Articles & FAQs
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\06_knowledge_base.sql"
 ```
 
 ---
@@ -92,10 +106,10 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 ## 🔒 Security Measures
 
 1. **SQL Injection Prevention**: All database queries strictly use PDO prepared statements with parameterized inputs.
-2. **Cross-Site Scripting (XSS)**: User-supplied output is escaped via `htmlspecialchars()` using `e()`.
+2. **Cross-Site Scripting (XSS)**: User-supplied output is escaped via `htmlspecialchars()` using `e()` and content renderer sanitization.
 3. **Cross-Site Request Forgery (CSRF)**: All POST requests require a verified CSRF session token.
-4. **IDOR & Role Guards**: Server-side authorization checks ensure users can only access resources and notifications permitted by their role and ownership.
-5. **Upload Protection**: Strict whitelist validation, randomized filenames, and `.htaccess` execution prevention in upload folders.
+4. **IDOR & Role Guards**: Server-side authorization checks ensure users can only access resources and actions permitted by their role.
+5. **Upload Protection**: Whitelist file extension and MIME validation, randomized filenames, and `.htaccess` execution prevention in upload folders.
 6. **Admin Deactivation Protection**: Server-side checks guarantee at least one active administrator remains at all times.
-7. **Zero Destructive Cascades**: Deleting tags removes pivot relations only; deleting notifications never deletes tickets or messages.
+7. **Category Deletion Safety**: Cannot delete a category that contains articles; protects against accidental content loss.
 8. **Sensitive Secret Protection**: SMTP passwords and auth secrets are never displayed back in forms or logged to activity logs.

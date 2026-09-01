@@ -64,12 +64,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 2. Support Settings
+    // 2. Support Desk Settings
     if ($tab === 'support') {
         $defaultPriority = trim($_POST['default_priority'] ?? 'medium');
         $defaultStatus = trim($_POST['default_status'] ?? 'open');
         $allowAttachments = isset($_POST['allow_customer_attachments']) ? '1' : '0';
-        $maxAttachmentSize = max(1, min(50, (int)($_POST['max_attachment_size_mb'] ?? 10)));
+        $maxSizeMb = (int)($_POST['max_attachment_size_mb'] ?? 10);
+        $kbEnabled = isset($_POST['knowledge_base_enabled']) ? '1' : '0';
+        $faqEnabled = isset($_POST['faq_enabled']) ? '1' : '0';
 
         if (!in_array($defaultPriority, VALID_PRIORITIES, true)) {
             $defaultPriority = 'medium';
@@ -77,14 +79,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($defaultStatus, VALID_TICKET_STATUSES, true)) {
             $defaultStatus = 'open';
         }
+        if ($maxSizeMb < 1 || $maxSizeMb > 100) {
+            $maxSizeMb = 10;
+        }
 
         set_setting('default_priority', $defaultPriority, 'string');
         set_setting('default_status', $defaultStatus, 'string');
         set_setting('allow_customer_attachments', $allowAttachments, 'boolean');
-        set_setting('max_attachment_size_mb', (string)$maxAttachmentSize, 'integer');
+        set_setting('max_attachment_size_mb', (string)$maxSizeMb, 'integer');
+        set_setting('knowledge_base_enabled', $kbEnabled, 'boolean');
+        set_setting('faq_enabled', $faqEnabled, 'boolean');
 
-        log_activity($user['id'], 'settings', 'support_settings_updated', 'Updated support desk settings');
-        flash('success', 'Support settings saved successfully.');
+        log_activity($user['id'], 'settings', 'support_settings_updated', 'Updated support desk rules and Knowledge Base toggles');
+        flash('success', 'Support desk and Knowledge Base settings saved successfully.');
         redirect('modules/settings/index.php?tab=support');
     }
 
@@ -298,8 +305,32 @@ include __DIR__ . '/../../includes/header.php';
                                 <input type="number" class="form-control" name="max_attachment_size_mb" min="1" max="50" value="<?= (int)($settings['max_attachment_size_mb'] ?? 10); ?>" style="max-width: 160px;">
                             </div>
 
+                            <h6 class="fw-bold text-dark mt-4 mb-3 pt-3 border-top">
+                                <i class="bi bi-book me-2 text-primary"></i>Knowledge Base & FAQ Portals
+                            </h6>
+
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="knowledge_base_enabled" name="knowledge_base_enabled" value="1" <?= (!empty($settings['knowledge_base_enabled']) && $settings['knowledge_base_enabled'] === '1') ? 'checked' : ''; ?>>
+                                    <label class="form-check-label fw-semibold" for="knowledge_base_enabled">
+                                        Enable Public Knowledge Base Portal
+                                    </label>
+                                    <div class="form-text small text-muted">When disabled, public article pages and search will be hidden.</div>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="faq_enabled" name="faq_enabled" value="1" <?= (!empty($settings['faq_enabled']) && $settings['faq_enabled'] === '1') ? 'checked' : ''; ?>>
+                                    <label class="form-check-label fw-semibold" for="faq_enabled">
+                                        Enable Frequently Asked Questions (FAQ) Section
+                                    </label>
+                                    <div class="form-text small text-muted">Displays the FAQ accordion on the public Support Center.</div>
+                                </div>
+                            </div>
+
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check2"></i> Save Support Rules
+                                <i class="bi bi-check2"></i> Save Support & KB Settings
                             </button>
                         </form>
                     <?php endif; ?>

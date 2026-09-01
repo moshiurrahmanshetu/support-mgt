@@ -1,4 +1,4 @@
-# Database Documentation — Phases 01, 02, 03, 04 & 05
+# Database Documentation — Phases 01, 02, 03, 04, 05 & 06
 
 This directory contains the database migration scripts and seed data for **support-mgt**.
 
@@ -15,7 +15,7 @@ Contains:
 
 ### 2. `02_ticket_management.sql` (Phase 02)
 Contains:
-- `tickets`: Core ticket tracking table (public `ticket_number` e.g. `TKT-100001`, `subject`, `description`, `priority`, `status`, `assigned_to`, `resolved_at`, `closed_at`).
+- `tickets`: Core ticket tracking table (`ticket_number` e.g. `TKT-100001`, `subject`, `description`, `priority`, `status`, `assigned_to`, `resolved_at`, `closed_at`).
 - `ticket_messages`: Message history table storing replies and internal staff notes (`message_type`: `reply` | `internal_note`).
 - `ticket_attachments`: Secure attachment records (`original_name`, `stored_name`, `mime_type`, `file_size`).
 
@@ -38,8 +38,8 @@ Contains:
 - `canned_responses`: Pre-written response templates for staff (`id`, `title`, `content`, `created_by`).
 - `ticket_activity_logs`: Audit trail for ticket lifecycle events (`ticket_id`, `user_id`, `action`, `old_value`, `new_value`, `description`).
 - **Initial Seeds**:
-  - 8 Default Ticket Tags (Technical, Billing, Payment, Login & Security, Account, Bug Report, Feature Request, Urgent Assistance).
-  - 4 Default Canned Responses.
+  - 8 Default Ticket Tags
+  - 4 Default Canned Responses
 
 ### 5. `05_notifications_settings.sql` (Phase 05)
 Contains:
@@ -47,10 +47,17 @@ Contains:
 - `user_notification_preferences`: Fine-grained personal notification preferences (`id`, `user_id`, `email_ticket_created`, `email_ticket_assigned`, `email_ticket_reply`, `email_ticket_status`, `email_ticket_reopened`, `in_app_enabled`).
 - `activity_logs`: System-level activity audit trail (`id`, `user_id`, `module`, `action`, `description`, `ip_address`, `user_agent`, `reference_type`, `reference_id`, `created_at`).
 - `settings`: Application configuration repository (`id`, `setting_key`, `setting_value`, `setting_type`, `updated_at`).
+
+### 6. `06_knowledge_base.sql` (Phase 06)
+Contains:
+- `knowledge_base_categories`: Table for topic categories (`id`, `name`, `slug` UNIQUE, `description`, `icon`, `sort_order`, `status`, `created_by` FK).
+- `knowledge_base_articles`: Table for self-service documentation (`id`, `category_id` FK, `title`, `slug` UNIQUE, `excerpt`, `content`, `featured_image`, `status`, `is_featured`, `view_count`, `created_by` FK, `published_at`).
+- `faqs`: Table for frequently asked questions (`id`, `question`, `answer`, `sort_order`, `status`, `created_by` FK).
 - **Initial Seeds**:
-  - Default General settings (`app_name`, `app_url`, `company_name`, `company_email`, `company_phone`, `timezone`, `date_format`).
-  - Default Support desk rules (`default_priority`, `default_status`, `allow_customer_attachments`, `max_attachment_size_mb`).
-  - Default Mail & Notification flags (`mail_enabled`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_pass`, `smtp_encryption`, `mail_from_name`, `mail_from_email`, `enable_in_app_notifications`, `enable_email_notifications`).
+  - 4 Default Topic Categories (Getting Started, Account & Security, Billing & Invoicing, Troubleshooting).
+  - 4 Default Published Help Articles.
+  - 4 Default Active FAQs.
+  - `knowledge_base_enabled` = '1' and `faq_enabled` = '1' in `settings`.
 
 ## Database Import Order in XAMPP
 
@@ -71,4 +78,7 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # Phase 05: Notifications, Preferences, System Logs & Settings
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\05_notifications_settings.sql"
+
+# Phase 06: Knowledge Base, Categories, Articles & FAQs
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\06_knowledge_base.sql"
 ```

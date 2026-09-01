@@ -48,7 +48,12 @@ if ($user['role'] === ROLE_ADMIN) {
             (SELECT COUNT(*) FROM departments WHERE status = 'active') AS active_departments,
             (SELECT COUNT(*) FROM tickets) AS total_tickets,
             (SELECT COUNT(*) FROM tickets WHERE status IN ('open', 'in_progress', 'pending')) AS open_tickets,
-            (SELECT COUNT(*) FROM tickets WHERE assigned_to IS NULL) AS unassigned_tickets
+            (SELECT COUNT(*) FROM tickets WHERE assigned_to IS NULL) AS unassigned_tickets,
+            (SELECT COUNT(*) FROM knowledge_base_articles) AS total_articles,
+            (SELECT COUNT(*) FROM knowledge_base_articles WHERE status = 'published') AS published_articles,
+            (SELECT COUNT(*) FROM knowledge_base_articles WHERE status = 'draft') AS draft_articles,
+            (SELECT COUNT(*) FROM knowledge_base_categories) AS total_categories,
+            (SELECT COUNT(*) FROM faqs WHERE status = 'active') AS active_faqs
     ");
     $adminStats = $adminOverviewStmt->fetch() ?: $adminStats;
 
@@ -287,6 +292,60 @@ include __DIR__ . '/includes/header.php';
                             <span class="text-primary fw-medium"><?= (int)$adminStats['open_tickets']; ?> Open</span> &bull; 
                             <a href="<?= url('modules/tickets/index.php?agent_id=-1'); ?>" class="text-danger fw-medium text-decoration-none"><?= (int)($adminStats['unassigned_tickets'] ?? 0); ?> Unassigned</a>
                         </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Knowledge Base Statistics Row -->
+        <div class="row g-3 mb-4">
+            <!-- KB Articles -->
+            <div class="col-6 col-md-4">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Help Articles</span>
+                            <div class="p-2 rounded bg-light text-primary">
+                                <i class="bi bi-file-earmark-text fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_articles']; ?></div>
+                        <span class="text-muted fs-8">
+                            <span class="text-success fw-medium"><?= (int)$adminStats['published_articles']; ?> Published</span> &bull; 
+                            <span class="text-secondary fw-medium"><?= (int)$adminStats['draft_articles']; ?> Draft</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KB Categories -->
+            <div class="col-6 col-md-4">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">KB Categories</span>
+                            <div class="p-2 rounded bg-light text-warning">
+                                <i class="bi bi-folder fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['total_categories']; ?></div>
+                        <span class="text-muted fs-8">Active topic sections</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active FAQs -->
+            <div class="col-12 col-md-4">
+                <div class="card h-100 border shadow-sm">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-secondary-custom fs-8 fw-semibold text-uppercase">Active FAQs</span>
+                            <div class="p-2 rounded bg-light text-info">
+                                <i class="bi bi-question-circle fs-5"></i>
+                            </div>
+                        </div>
+                        <div class="h3 fw-bold mb-0 text-dark"><?= (int)$adminStats['active_faqs']; ?></div>
+                        <span class="text-muted fs-8">Published FAQ items</span>
                     </div>
                 </div>
             </div>
@@ -539,6 +598,19 @@ include __DIR__ . '/includes/header.php';
                                 <i class="bi bi-chevron-right text-muted"></i>
                             </a>
                         <?php endif; ?>
+
+                        <a href="<?= url('modules/knowledge_base/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="p-2 rounded bg-light text-primary">
+                                    <i class="bi bi-book fs-5"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold text-dark">Support & Help Center</div>
+                                    <div class="small text-muted">Browse knowledge base articles and FAQs</div>
+                                </div>
+                            </div>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </a>
 
                         <a href="<?= url('modules/notifications/index.php'); ?>" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between px-0 py-3 border-bottom">
                             <div class="d-flex align-items-center gap-3">

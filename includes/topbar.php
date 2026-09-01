@@ -124,6 +124,16 @@ $recentNotifs = $user ? get_recent_notifications($user['id'], 5) : [];
                     </li>
                 </ul>
             </div>
+        <?php else: ?>
+            <!-- Guest Links for Public Support Center -->
+            <div class="d-flex align-items-center gap-2">
+                <a href="<?= url('auth/login.php'); ?>" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                </a>
+                <a href="<?= url('auth/register.php'); ?>" class="btn btn-primary btn-sm">
+                    <i class="bi bi-person-plus"></i> Register
+                </a>
+            </div>
         <?php endif; ?>
     </div>
 </header>

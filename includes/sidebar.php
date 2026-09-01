@@ -97,6 +97,18 @@ function is_nav_active(string $target, string $currentScript, string $activePage
             </li>
         <?php endif; ?>
 
+        <!-- Knowledge Base Portal (All Roles) -->
+        <li class="nav-item">
+            <a href="<?= url('modules/knowledge_base/index.php'); ?>" 
+               class="nav-link-custom <?= (strpos($currentScript, 'knowledge_base') !== false && !in_array($activePage, ['kb_articles', 'kb_categories', 'kb_faqs'], true)) ? 'active' : ''; ?>" 
+               data-bs-toggle="tooltip" 
+               data-bs-placement="right" 
+               title="Knowledge Base">
+                <i class="bi bi-book"></i>
+                <span class="nav-text">Help Center</span>
+            </a>
+        </li>
+
         <!-- Notifications Link (All Roles) -->
         <li class="nav-item">
             <a href="<?= url('modules/notifications/index.php'); ?>" 
@@ -113,6 +125,42 @@ function is_nav_active(string $target, string $currentScript, string $activePage
             <!-- Admin Management Section -->
             <li class="nav-header">
                 <span class="nav-header-text">Administration</span>
+            </li>
+
+            <!-- KB Articles -->
+            <li class="nav-item">
+                <a href="<?= url('modules/knowledge_base/articles/index.php'); ?>" 
+                   class="nav-link-custom <?= ($activePage === 'kb_articles' || strpos($currentScript, 'articles') !== false) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="KB Articles">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span class="nav-text">KB Articles</span>
+                </a>
+            </li>
+
+            <!-- KB Categories -->
+            <li class="nav-item">
+                <a href="<?= url('modules/knowledge_base/categories/index.php'); ?>" 
+                   class="nav-link-custom <?= ($activePage === 'kb_categories' || strpos($currentScript, 'categories') !== false) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="KB Categories">
+                    <i class="bi bi-folder"></i>
+                    <span class="nav-text">KB Categories</span>
+                </a>
+            </li>
+
+            <!-- FAQs -->
+            <li class="nav-item">
+                <a href="<?= url('modules/knowledge_base/faqs/index.php'); ?>" 
+                   class="nav-link-custom <?= ($activePage === 'kb_faqs' || strpos($currentScript, 'faqs') !== false) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Manage FAQs">
+                    <i class="bi bi-question-circle"></i>
+                    <span class="nav-text">FAQs</span>
+                </a>
             </li>
 
             <!-- Customers -->
@@ -193,17 +241,41 @@ function is_nav_active(string $target, string $currentScript, string $activePage
             <span class="nav-header-text">Account</span>
         </li>
 
-        <!-- Profile Link -->
-        <li class="nav-item">
-            <a href="<?= url('modules/profile/index.php'); ?>" 
-               class="nav-link-custom <?= is_nav_active('profile', $currentScript, $activePage) ? 'active' : ''; ?>" 
-               data-bs-toggle="tooltip" 
-               data-bs-placement="right" 
-               title="My Profile">
-                <i class="bi bi-person-circle"></i>
-                <span class="nav-text">My Profile</span>
-            </a>
-        </li>
+        <?php if ($user): ?>
+            <!-- Profile Link -->
+            <li class="nav-item">
+                <a href="<?= url('modules/profile/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('profile', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="My Profile">
+                    <i class="bi bi-person-circle"></i>
+                    <span class="nav-text">My Profile</span>
+                </a>
+            </li>
+        <?php else: ?>
+            <!-- Guest Sign In / Register -->
+            <li class="nav-item">
+                <a href="<?= url('auth/login.php'); ?>" 
+                   class="nav-link-custom" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Sign In">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span class="nav-text">Sign In</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="<?= url('auth/register.php'); ?>" 
+                   class="nav-link-custom" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Create Account">
+                    <i class="bi bi-person-plus"></i>
+                    <span class="nav-text">Create Account</span>
+                </a>
+            </li>
+        <?php endif; ?>
     </ul>
 
     <!-- Sidebar Footer / Account Info -->

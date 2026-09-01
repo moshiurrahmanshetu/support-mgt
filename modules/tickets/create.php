@@ -309,7 +309,26 @@ include __DIR__ . '/../../includes/header.php';
                            value="<?= e(old('subject')); ?>" 
                            placeholder="Brief summary of the issue..." 
                            required 
+                           autocomplete="off"
                            autofocus>
+
+                    <!-- Knowledge Base Live Suggestions Container -->
+                    <div id="kbSuggestionsBox" class="mt-2 d-none">
+                        <div class="card border-primary-subtle bg-light shadow-sm">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="small fw-bold text-primary">
+                                        <i class="bi bi-lightbulb me-1"></i> Relevant Help Center Articles
+                                    </span>
+                                    <button type="button" class="btn-close btn-close-sm" id="btnDismissSuggestions" aria-label="Close" style="font-size: 0.65rem;"></button>
+                                </div>
+                                <p class="small text-muted mb-2">These articles might resolve your issue immediately without waiting for a support reply:</p>
+                                <div id="kbSuggestionsList" class="list-group list-group-flush bg-transparent">
+                                    <!-- Suggestions dynamically inserted here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row">
@@ -374,5 +393,65 @@ include __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const subjectInput = document.getElementById('subject');
+    const suggestionsBox = document.getElementById('kbSuggestionsBox');
+    const suggestionsList = document.getElementById('kbSuggestionsList');
+    const btnDismiss = document.getElementById('btnDismissSuggestions');
+
+    if (!subjectInput || !suggestionsBox || !suggestionsList) return;
+
+    let debounceTimer = null;
+    let isDismissed = false;
+
+    btnDismiss.addEventListener('click', function() {
+        suggestionsBox.classList.add('d-none');
+        isDismissed = true;
+    });
+
+    subjectInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearTimeout(debounceTimer);
+
+        if (query.length < 3) {
+            suggestionsBox.classList.add('d-none');
+            return;
+        }
+
+        debounceTimer = setTimeout(function() {
+            fetch('<?= url('modules/knowledge_base/suggestions.php'); ?>?q=' + encodeURIComponent(query))
+                .then(function(response) {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data && data.suggestions && data.suggestions.length > 0) {
+                        let html = '';
+                        data.suggestions.forEach(function(item) {
+                            html += '<a href="' + item.url + '" target="_blank" class="list-group-item list-group-item-action bg-transparent px-2 py-1 d-flex align-items-center justify-content-between text-decoration-none border-0">' +
+                                        '<div class="d-flex align-items-center gap-2">' +
+                                            '<i class="bi ' + (item.category_icon || 'bi-file-text') + ' text-primary small"></i>' +
+                                            '<span class="text-dark small fw-medium">' + item.title + '</span>' +
+                                            '<span class="badge bg-white text-muted border fs-8">' + item.category_name + '</span>' +
+                                        '</div>' +
+                                        '<i class="bi bi-box-arrow-up-right text-muted fs-8"></i>' +
+                                    '</a>';
+                        });
+                        suggestionsList.innerHTML = html;
+                        suggestionsBox.classList.remove('d-none');
+                    } else {
+                        suggestionsBox.classList.add('d-none');
+                    }
+                })
+                .catch(function(err) {
+                    // Non-blocking: fail silently
+                    suggestionsBox.classList.add('d-none');
+                });
+        }, 350);
+    });
+});
+</script>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>
