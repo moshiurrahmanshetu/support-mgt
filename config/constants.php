@@ -5,12 +5,18 @@
 
 // User Roles
 define('ROLE_ADMIN', 'admin');
+define('ROLE_ADMINISTRATOR', 'administrator');
+define('ROLE_SUPPORT_MANAGER', 'support_manager');
+define('ROLE_SUPPORT_AGENT', 'support_agent');
 define('ROLE_AGENT', 'agent');
 define('ROLE_CUSTOMER', 'customer');
 
 // Valid roles list
 define('VALID_ROLES', [
     ROLE_ADMIN,
+    ROLE_ADMINISTRATOR,
+    ROLE_SUPPORT_MANAGER,
+    ROLE_SUPPORT_AGENT,
     ROLE_AGENT,
     ROLE_CUSTOMER
 ]);

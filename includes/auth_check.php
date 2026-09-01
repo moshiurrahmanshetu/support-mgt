@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/csrf.php';
+require_once __DIR__ . '/permissions.php';
 
 /**
  * Check if a user is currently authenticated
@@ -28,7 +29,7 @@ function current_user(): ?array {
  */
 function refresh_user_session(int $userId): bool {
     $db = get_db();
-    $stmt = $db->prepare("SELECT id, role, name, email, phone, avatar, department_id, status, email_verified_at, last_login_at, created_at, updated_at FROM users WHERE id = ? AND status = 'active' LIMIT 1");
+    $stmt = $db->prepare("SELECT id, role, name, email, phone, avatar, department_id, status, email_verified_at, last_login_at, created_at, updated_at, deleted_at FROM users WHERE id = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
 
@@ -77,10 +78,27 @@ function has_role($roles): bool {
         return false;
     }
 
-    if (is_array($roles)) {
-        return in_array($user['role'], $roles, true);
+    $currentRole = strtolower($user['role'] ?? '');
+    
+    // Normalization mapping for flexible role aliases
+    $equivalentRoles = [$currentRole];
+    if ($currentRole === 'admin' || $currentRole === 'administrator') {
+        $equivalentRoles = ['admin', 'administrator'];
+    } elseif ($currentRole === 'agent' || $currentRole === 'support_agent') {
+        $equivalentRoles = ['agent', 'support_agent'];
+    } elseif ($currentRole === 'manager' || $currentRole === 'support_manager') {
+        $equivalentRoles = ['manager', 'support_manager'];
     }
-    return $user['role'] === $roles;
+
+    $targetRoles = is_array($roles) ? array_map('strtolower', $roles) : [strtolower($roles)];
+    
+    foreach ($equivalentRoles as $r) {
+        if (in_array($r, $targetRoles, true)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -102,23 +120,6 @@ function require_role($roles): void {
  * Prevents deactivating the last active administrator.
  */
 function can_deactivate_user(int $userId): bool {
-    $db = get_db();
-    $stmt = $db->prepare("SELECT role, status FROM users WHERE id = ? LIMIT 1");
-    $stmt->execute([$userId]);
-    $target = $stmt->fetch();
-
-    if (!$target) {
-        return false;
-    }
-
-    if ($target['role'] === ROLE_ADMIN && $target['status'] === STATUS_ACTIVE) {
-        $countStmt = $db->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 'active'");
-        $activeAdminCount = (int)$countStmt->fetchColumn();
-
-        if ($activeAdminCount <= 1) {
-            return false; // Cannot deactivate the only active admin
-        }
-    }
-
-    return true;
+    return can_modify_user_role_or_status($userId, 'customer', STATUS_INACTIVE);
 }
+

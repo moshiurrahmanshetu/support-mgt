@@ -251,7 +251,14 @@ h1, h2, h3, h4, h5, h6 {
     background-color: #0d9488;
     color: #ffffff;
 }
-
+.badge-role-administrator{
+    background-color: #e90202;
+    color: #ffffff;
+}
+.badge-role-support_agent, .badge-role-support_manager{
+    background-color: #666161;
+    color: #ffffff;
+}
 /* Account Status Badges */
 .badge-status-active {
     background-color: #16a34a;

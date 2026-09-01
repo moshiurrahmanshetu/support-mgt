@@ -211,6 +211,30 @@ function is_nav_active(string $target, string $currentScript, string $activePage
                 </a>
             </li>
 
+            <!-- User Management -->
+            <li class="nav-item">
+                <a href="<?= url('modules/users/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('users', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="User Management">
+                    <i class="bi bi-people-fill"></i>
+                    <span class="nav-text">Users</span>
+                </a>
+            </li>
+
+            <!-- Role Management -->
+            <li class="nav-item">
+                <a href="<?= url('modules/roles/index.php'); ?>" 
+                   class="nav-link-custom <?= is_nav_active('roles', $currentScript, $activePage) ? 'active' : ''; ?>" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Role Management">
+                    <i class="bi bi-shield-lock"></i>
+                    <span class="nav-text">Roles</span>
+                </a>
+            </li>
+
             <!-- System Activity Logs -->
             <li class="nav-item">
                 <a href="<?= url('modules/activity_logs/index.php'); ?>" 

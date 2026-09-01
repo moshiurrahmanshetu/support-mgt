@@ -62,10 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // 4. Create User (Strictly Customer Role)
+        // 4. Create User (Strictly Server-Side Customer Role)
         if (empty($errors)) {
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            $role = ROLE_CUSTOMER; // Strict Customer Role for public registration
+            $role = 'customer'; // Strict Customer Role for public registration - ignores any POST parameters
             $status = STATUS_ACTIVE;
 
             $insertStmt = $db->prepare("
@@ -83,8 +83,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $newUserId = (int)$db->lastInsertId();
 
+            // Link user in user_roles table
+            require_once __DIR__ . '/../includes/permissions.php';
+            $custRole = get_role_by_slug('customer');
+            if ($custRole) {
+                assign_user_role($newUserId, (int)$custRole['id']);
+            }
+
+            // Create Welcome In-App Notification
+            require_once __DIR__ . '/../includes/notifications.php';
+            create_notification(
+                $newUserId,
+                'Welcome to Support Desk!',
+                'Your account has been created. You can browse our Knowledge Base or submit support inquiries at any time.',
+                'system',
+                'user',
+                $newUserId
+            );
+
             require_once __DIR__ . '/../includes/activity_log.php';
-            log_activity($newUserId, 'auth', 'registration', "New customer {$name} ({$email}) registered");
+            log_activity($newUserId, 'auth', 'customer_registered', "New customer {$name} ({$email}) registered");
 
             clear_old_input();
             flash('success', 'Registration successful! You can now sign in with your credentials.');

@@ -233,3 +233,11 @@ function get_pagination_params(int $totalRecords, int $defaultPerPage = 20, arra
         'total_records' => $totalRecords
     ];
 }
+
+/**
+ * Retrieve previously submitted form input.
+ */
+function get_old_input(): array
+{
+    return $_SESSION['old_input'] ?? [];
+}

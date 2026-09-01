@@ -1,4 +1,4 @@
-# Database Documentation — Phases 01 through 07
+# Database Documentation — Phases 01 through 08
 
 This directory contains the database migration scripts and seed data for **support-mgt**.
 
@@ -49,7 +49,18 @@ Contains:
 ### 7. `07_reports.sql` (Phase 07)
 Contains:
 - Performance optimization indexes for `tickets` table (`idx_tkt_created_at`, `idx_tkt_first_response`, `idx_tkt_resolved_at`).
-- Explanatory architectural documentation noting that all reports are computed live from existing application data with no static/duplicate report tables.
+- Live computation documentation for all reports.
+
+### 8. `08_user_role_customer.sql` (Phase 08)
+Contains:
+- `roles`: Role definitions table (`id`, `name`, `slug` UNIQUE, `description`, `status`, `is_system`, `created_at`, `updated_at`).
+- `user_roles`: Pivot table linking users to primary and secondary roles (`user_id`, `role_id`).
+- `permissions`: System permissions catalog (`id`, `name`, `slug` UNIQUE, `module`, `description`).
+- `role_permissions`: Pivot table linking roles to granular permissions (`role_id`, `permission_id`).
+- Alterations: Expands `users.role` to `VARCHAR(50)`, adds `deleted_at` timestamp for soft delete support.
+- Core Seeds: 4 default system roles (`administrator`, `support_manager`, `support_agent`, `customer`), 52 system permissions, 102 default role-permission assignments, and backfilled `user_roles` linking existing users.
+
+---
 
 ## Database Import Order in XAMPP
 
@@ -59,13 +70,13 @@ Execute the SQL files in dependency order:
 # Phase 01: Authentication
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\01_authentication.sql"
 
-# Phase 02: Ticket Management Core
+# Phase 02: Tickets & Attachments
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\02_ticket_management.sql"
 
-# Phase 03: Customer, Agent & Department Management
+# Phase 03: Departments & Management
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\03_customer_agent_department.sql"
 
-# Phase 04: Advanced Workflows, Tags, Canned Responses & Activity Logs
+# Phase 04: Advanced Workflows, Tags, Canned Responses & Logs
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\04_advanced_ticket_workflow.sql"
 
 # Phase 05: Notifications, Preferences, System Logs & Settings
@@ -76,4 +87,7 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # Phase 07: Reports & Analytics Performance Indexes
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\07_reports.sql"
+
+# Phase 08: Roles, Permissions, User Roles & Customer Registration
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\08_user_role_customer.sql"
 ```

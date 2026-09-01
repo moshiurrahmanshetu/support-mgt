@@ -53,10 +53,13 @@ if ($user['role'] === ROLE_ADMIN) {
     // Admin Module Overview
     $adminOverviewStmt = $db->query("
         SELECT
-            (SELECT COUNT(*) FROM users WHERE role = 'customer') AS total_customers,
-            (SELECT COUNT(*) FROM users WHERE role = 'customer' AND status = 'active') AS active_customers,
-            (SELECT COUNT(*) FROM users WHERE role = 'agent') AS total_agents,
-            (SELECT COUNT(*) FROM users WHERE role = 'agent' AND status = 'active') AS active_agents,
+            (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL) AS total_users,
+            (SELECT COUNT(*) FROM users WHERE status = 'active' AND deleted_at IS NULL) AS active_users,
+            (SELECT COUNT(*) FROM users WHERE role = 'customer' AND deleted_at IS NULL) AS total_customers,
+            (SELECT COUNT(*) FROM users WHERE role = 'customer' AND status = 'active' AND deleted_at IS NULL) AS active_customers,
+            (SELECT COUNT(*) FROM users WHERE role IN ('agent', 'support_agent') AND deleted_at IS NULL) AS total_agents,
+            (SELECT COUNT(*) FROM users WHERE role IN ('agent', 'support_agent') AND status = 'active' AND deleted_at IS NULL) AS active_agents,
+            (SELECT COUNT(*) FROM users WHERE role IN ('manager', 'support_manager') AND deleted_at IS NULL) AS total_managers,
             (SELECT COUNT(*) FROM departments) AS total_departments,
             (SELECT COUNT(*) FROM departments WHERE status = 'active') AS active_departments,
             (SELECT COUNT(*) FROM tickets) AS total_tickets,

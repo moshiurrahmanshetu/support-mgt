@@ -63,10 +63,27 @@ A lightweight, enterprise-ready Customer Support Management System built with **
 - **First Response Time Analytics (`modules/reports/response_time.php`)**: Average, fastest, and slowest response metrics with speed distribution brackets (&lt;15m, 15m–1h, 1h–4h, 4h–24h, &gt;24h) and recent response audit logs.
 - **Resolution Turnaround Analytics (`modules/reports/resolution_time.php`)**: Average, fastest, and slowest resolution turnaround times with duration brackets (&lt;1h, 1h–8h, 8h–24h, 1d–3d, &gt;3d) and recently resolved ticket details.
 - **Secure CSV Export Engine (`modules/reports/export.php`)**: Native streaming export for Tickets, Agents, Customers, and Departments with CSV Formula Injection protection (`=`, `+`, `-`, `@`), UTF-8 BOM encoding, parameter filtering, and `report_exported` activity logging.
-- **Dashboard Enhancements (`index.php`)**:
-  - *Admin*: Added date range switchers (`Today`, `Last 7 Days`, `Last 30 Days`), live First Response & Resolution Speed KPI cards, and direct unassigned ticket links.
-  - *Agent*: Scoped strictly to personal assigned tickets, personal First Response Speed, and personal Resolution Speed.
-  - *Customer*: Clean personal dashboard scoped to own tickets and quick action links.
+
+### Phase 08: User Management + Role Management + Permissions + Customer Registration
+- **User Management Module (`modules/users/`)**:
+  - Full CRUD for user accounts (`index.php`, `create.php`, `edit.php`, `view.php`, `roles.php`, `status.php`, `delete.php`).
+  - Search, role filtering, status filtering, and safe pagination (20, 50, 100).
+  - Soft delete support (`deleted_at`) preserving historical tickets and activity audit trails intact.
+  - Server-side **Last Administrator Safety Guard** preventing the deactivation, deletion, or demotion of the final active admin.
+- **Role Management Module (`modules/roles/`)**:
+  - Full CRUD for roles (`index.php`, `create.php`, `edit.php`, `view.php`, `permissions.php`, `delete.php`).
+  - System role protection (`is_system = 1`) preventing deletion of core roles (`administrator`, `support_manager`, `support_agent`, `customer`).
+  - Role deletion blocker preventing removal of custom roles while actively assigned to users.
+- **Granular Permissions Matrix (`modules/roles/permissions.php`)**:
+  - 52 distinct system permissions grouped cleanly by functional module.
+  - Interactive permissions matrix with "Select All" / "Toggle Module" capabilities, saving in a transaction.
+- **Centralized Permission Helpers (`includes/permissions.php`)**:
+  - `has_permission()`, `require_permission()`, `assign_user_role()`, `is_admin_user()`, `can_modify_user_role_or_status()`.
+  - Automatic superadmin rule: Administrators have full access across all permissions without manual checkbox assignment.
+- **Public Customer Registration Workflow (`auth/register.php`)**:
+  - Self-service registration automatically assigned the `customer` role server-side.
+  - Ignores any client-submitted `role` or `permissions` fields, preventing privilege escalation.
+  - Dispatches welcome in-app notification and records `customer_registered` activity log.
 
 ---
 
@@ -83,6 +100,7 @@ database/
 ├── 05_notifications_settings.sql     # Phase 05: notifications, preferences, system logs, settings
 ├── 06_knowledge_base.sql             # Phase 06: categories, articles, faqs, default KB seeds
 ├── 07_reports.sql                    # Phase 07: documentation & performance indexes
+├── 08_user_role_customer.sql         # Phase 08: roles, permissions, user_roles, role_permissions
 └── README.md                         # Migration documentation
 ```
 
@@ -109,6 +127,9 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 
 # 7. Phase 07: Reports & Analytics Performance Indexes
 cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\07_reports.sql"
+
+# 8. Phase 08: Roles, Permissions, User Roles & Customer Registration
+cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\database\08_user_role_customer.sql"
 ```
 
 ---
@@ -126,7 +147,8 @@ cmd.exe /c "c:\xampp\mysql\bin\mysql.exe -u root < c:\xampp\htdocs\support-mgt\d
 1. **SQL Injection Prevention**: All database queries strictly use PDO prepared statements with parameterized inputs.
 2. **Cross-Site Scripting (XSS)**: User-supplied output is escaped via `htmlspecialchars()` using `e()`.
 3. **Cross-Site Request Forgery (CSRF)**: All POST requests require a verified CSRF session token.
-4. **Role Guards & Access Controls**: Server-side authorization checks (`require_role(ROLE_ADMIN)`) prevent unauthorized report and export viewing.
-5. **CSV Formula Injection Mitigation**: All exported spreadsheet values beginning with `=`, `+`, `-`, `@` are safely sanitized.
-6. **Credential Privacy**: Sensitive data (passwords, salts, session tokens, SMTP credentials) are strictly excluded from CSV exports and report interfaces.
-7. **Division-by-Zero Safety**: All calculations are mathematically guarded against empty datasets (`safe_percentage()`).
+4. **Server-Side Authorization & Permissions**: Guarded by `require_permission()` and `require_role()`.
+5. **Last Administrator Protection**: Prevents deleting, deactivating, or demoting the last active administrator.
+6. **Registration Role Sanitization**: Public registration ignores any submitted `role` parameter and strictly assigns the `customer` role server-side.
+7. **Soft Delete Safety**: User deletions set `deleted_at` timestamp, preserving historical ticket and message audit logs intact.
+8. **CSV Formula Injection Mitigation**: Sanitizes cell values starting with `=`, `+`, `-`, `@`.
